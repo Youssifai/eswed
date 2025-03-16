@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, asc } from "drizzle-orm";
 import { fileTypeEnum, filesTable, InsertFile, SelectFile } from "../schema/files-schema";
 
 export const createFile = async (data: InsertFile) => {
@@ -146,5 +146,20 @@ export const createDefaultFolders = async (projectId: string) => {
   } catch (error) {
     console.error("Error creating default folders:", error);
     throw new Error("Failed to create default folders");
+  }
+};
+
+// Get all files for a project (both root-level and nested)
+export const getAllFilesByProjectId = async (projectId: string): Promise<SelectFile[]> => {
+  try {
+    const files = await db.query.files.findMany({
+      where: eq(filesTable.projectId, projectId),
+      orderBy: (files, { asc }) => [asc(files.name)]
+    });
+    
+    return files;
+  } catch (error) {
+    console.error("Error getting all files by project ID:", error);
+    throw new Error("Failed to get all files");
   }
 }; 

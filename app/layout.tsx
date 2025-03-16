@@ -1,5 +1,4 @@
 import { getProfileByUserIdAction } from "@/actions/profiles-actions";
-import Header from "@/components/header";
 import { Toaster } from "@/components/ui/toaster";
 import { Providers } from "@/components/utilities/providers";
 import { createProfile } from "@/db/queries/profiles-queries";
@@ -35,7 +34,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             defaultTheme="dark"
             disableTransitionOnChange
           >
-            <Header />
             {children}
             <Toaster />
           </Providers>

@@ -86,37 +86,37 @@ export default function InspirationToolbar({ selectedTool, onSelectTool }: Inspi
   ];
 
   return (
-    <div className="h-full bg-neutral-900 border-r border-neutral-800 w-16 py-4 flex flex-col items-center gap-4">
-      <TooltipProvider>
-        {tools.map((tool) => (
-          tool.divider ? (
-            <div key="divider" className="w-8 h-px bg-neutral-700 my-2" />
+    <div className="fixed left-[50px] top-0 bottom-0 flex flex-col items-center justify-center z-10">
+      <div className="flex flex-col items-center bg-[#292929] border border-[#4A4A4A] rounded-[10px] p-1.5 space-y-1">
+        {tools.map((tool) => 
+          tool.id === "divider" ? (
+            <div key="divider" className="h-px bg-[#4A4A4A] w-8 my-1" />
           ) : (
-            <Tooltip key={tool.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => tool.available && onSelectTool(tool.id as Tool)}
-                  className={`w-12 h-12 rounded-lg flex items-center justify-center transition-all ${
-                    selectedTool === tool.id 
-                      ? "bg-neutral-800 text-white" 
-                      : tool.available 
-                        ? "text-neutral-400 hover:text-white hover:bg-neutral-800" 
-                        : "text-neutral-700 cursor-not-allowed"
-                  }`}
-                  disabled={!tool.available}
-                >
-                  <div className="w-6 h-6">
-                    {tool.icon}
-                  </div>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>{tool.name} {!tool.available && "(Coming Soon)"}</p>
-              </TooltipContent>
-            </Tooltip>
+            <TooltipProvider key={tool.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`p-2 rounded-[10px] transition-all ${
+                      selectedTool === tool.id 
+                        ? "bg-[#1E1E1E] scale-95" 
+                        : "hover:bg-[#1E1E1E]/40"
+                    } ${!tool.available ? "opacity-40 cursor-not-allowed" : ""}`}
+                    onClick={() => tool.available && onSelectTool(tool.id as Tool)}
+                    disabled={!tool.available}
+                  >
+                    <div className="w-5 h-5">
+                      {tool.icon}
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{tool.name} {!tool.available ? "(Coming Soon)" : ""}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )
-        ))}
-      </TooltipProvider>
+        )}
+      </div>
     </div>
   );
 } 

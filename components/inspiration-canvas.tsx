@@ -44,51 +44,46 @@ export default function InspirationCanvas({ projectId, initialData }: Inspiratio
   const [resizeStartPos, setResizeStartPos] = useState({ x: 0, y: 0 });
   const [resizeStartSize, setResizeStartSize] = useState({ width: 0, height: 0 });
   const [showImageHelp, setShowImageHelp] = useState(false);
+  const [canvasCursor, setCanvasCursor] = useState<string>("default");
   
   // Save state
   const [isSaving, setIsSaving] = useState(false);
   
+  // Debounced canvas data for saving
+  const [debouncedCanvasItems] = useDebounce(canvasItems, 1000);
+  
   // Refs
   const canvasRef = useRef<HTMLDivElement>(null);
-  
-  // Debounced data for saving
-  const [debouncedItems] = useDebounce(canvasItems, 1000);
   
   // Save canvas data when it changes
   useEffect(() => {
     const saveData = async () => {
+      setIsSaving(true);
       try {
-        setIsSaving(true);
-        await updateInspirationData(projectId, JSON.stringify(debouncedItems));
-      } catch (error) {
-        console.error("Failed to save inspiration data:", error);
+        const serializedData = JSON.stringify(debouncedCanvasItems);
+        await updateInspirationData(projectId, serializedData);
+      } catch (e) {
+        console.error("Failed to save canvas data:", e);
       } finally {
         setIsSaving(false);
       }
     };
     
-    if (debouncedItems.length > 0) {
-      saveData();
-    }
-  }, [debouncedItems, projectId]);
-
-  // Show image help text when image tool is selected
-  useEffect(() => {
-    setShowImageHelp(selectedTool === "image");
-  }, [selectedTool]);
+    saveData();
+  }, [debouncedCanvasItems, projectId]);
   
-  // Handle key events for space bar (pan mode) and delete
+  // Handle keyboard events
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space" && !spacePressed) {
         setSpacePressed(true);
         document.body.style.cursor = "grab";
+        setCanvasCursor("grab");
       }
       
-      // Delete selected item with Backspace or Delete key
-      if ((e.code === "Backspace" || e.code === "Delete") && selectedItemId && !resizing) {
-        e.preventDefault();
-        setCanvasItems(items => items.filter(item => item.id !== selectedItemId));
+      // Delete selected item on Backspace or Delete
+      if ((e.key === "Backspace" || e.key === "Delete") && selectedItemId) {
+        setCanvasItems(prev => prev.filter(item => item.id !== selectedItemId));
         setSelectedItemId(null);
       }
     };
@@ -97,6 +92,11 @@ export default function InspirationCanvas({ projectId, initialData }: Inspiratio
       if (e.code === "Space") {
         setSpacePressed(false);
         document.body.style.cursor = "default";
+        setCanvasCursor("default");
+        
+        if (isDragging) {
+          setIsDragging(false);
+        }
       }
     };
     
@@ -108,84 +108,97 @@ export default function InspirationCanvas({ projectId, initialData }: Inspiratio
       window.removeEventListener("keyup", handleKeyUp);
       document.body.style.cursor = "default";
     };
-  }, [spacePressed, selectedItemId, resizing]);
+  }, [spacePressed, isDragging, selectedItemId]);
   
-  // Mouse handlers for panning the canvas
+  // Handle mouse events for canvas panning
   const handleMouseDown = (e: React.MouseEvent) => {
     if (spacePressed) {
       setIsDragging(true);
       setStartDragPos({ x: e.clientX, y: e.clientY });
+      setCanvasCursor("grabbing");
+      document.body.style.cursor = "grabbing";
     }
   };
   
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging && spacePressed) {
-      const deltaX = e.clientX - startDragPos.x;
-      const deltaY = e.clientY - startDragPos.y;
+      const dx = e.clientX - startDragPos.x;
+      const dy = e.clientY - startDragPos.y;
       
-      // Limit panning to stay within reasonable bounds
-      const newX = position.x + deltaX;
-      const newY = position.y + deltaY;
-      
-      // Apply limits - this keeps the canvas within reasonable bounds
-      const maxPan = 2000; // Adjust as needed
-      const limitedX = Math.max(Math.min(newX, maxPan), -maxPan);
-      const limitedY = Math.max(Math.min(newY, maxPan), -maxPan);
-      
-      setPosition({
-        x: limitedX,
-        y: limitedY
-      });
+      setPosition(prev => ({
+        x: prev.x + dx,
+        y: prev.y + dy
+      }));
       
       setStartDragPos({ x: e.clientX, y: e.clientY });
-    }
-    
-    // Handle resizing
-    if (resizing && selectedItemId) {
-      const deltaX = e.clientX - resizeStartPos.x;
-      const deltaY = e.clientY - resizeStartPos.y;
+    } else if (resizing && selectedItemId) {
+      const dx = e.clientX - resizeStartPos.x;
+      const dy = e.clientY - resizeStartPos.y;
       
-      setCanvasItems(items => 
-        items.map(item => {
-          if (item.id === selectedItemId && item.size) {
-            // Calculate new size with minimum constraints
-            const newWidth = Math.max(50, resizeStartSize.width + deltaX / scale);
-            const newHeight = Math.max(50, resizeStartSize.height + deltaY / scale);
-            
-            return {
-              ...item,
-              size: {
-                width: newWidth,
-                height: newHeight
-              }
-            };
-          }
-          return item;
-        })
-      );
+      setCanvasItems(prev => prev.map(item => {
+        if (item.id === selectedItemId) {
+          return {
+            ...item,
+            size: {
+              width: Math.max(100, resizeStartSize.width + dx),
+              height: Math.max(100, resizeStartSize.height + dy)
+            }
+          };
+        }
+        return item;
+      }));
     }
   };
   
   const handleMouseUp = () => {
     if (isDragging) {
       setIsDragging(false);
+      document.body.style.cursor = spacePressed ? "grab" : "default";
+      setCanvasCursor(spacePressed ? "grab" : "default");
     }
+    
     if (resizing) {
       setResizing(false);
+      document.body.style.cursor = "default";
+      setCanvasCursor("default");
     }
   };
   
-  // Zoom handling with wheel - only when space is pressed
+  // Handle zooming
   const handleWheel = (e: React.WheelEvent) => {
     if (spacePressed) {
       e.preventDefault();
       const delta = e.deltaY * -0.01;
+      const newScale = Math.min(Math.max(0.5, scale + delta), 2.5); // Limit scale between 0.5 and 2.5
       
-      // Apply zoom limits
-      const newScale = Math.min(Math.max(0.25, scale + delta), 4);
+      // Zoom centered on mouse position
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      
+      const canvasBounds = canvasRef.current?.getBoundingClientRect();
+      if (canvasBounds) {
+        const mouseXRelativeToCanvas = mouseX - canvasBounds.left;
+        const mouseYRelativeToCanvas = mouseY - canvasBounds.top;
+        
+        const mouseXCanvasSpace = (mouseXRelativeToCanvas - position.x) / scale;
+        const mouseYCanvasSpace = (mouseYRelativeToCanvas - position.y) / scale;
+        
+        const newPosition = {
+          x: position.x - (mouseXCanvasSpace * (newScale - scale)),
+          y: position.y - (mouseYCanvasSpace * (newScale - scale))
+        };
+        
+        setPosition(newPosition);
+      }
+      
       setScale(newScale);
     }
   };
+  
+  // Show image help text when image tool is selected
+  useEffect(() => {
+    setShowImageHelp(selectedTool === "image");
+  }, [selectedTool]);
   
   // Add a new item to the canvas
   const addItem = (type: "text" | "image", position: { x: number, y: number }, content: string = "") => {
@@ -320,114 +333,107 @@ export default function InspirationCanvas({ projectId, initialData }: Inspiratio
   };
   
   return (
-    <div className="fixed inset-0 pt-16 pb-16 flex flex-col">
-      {/* Main content area with toolbar and canvas */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left toolbar */}
-        <InspirationToolbar 
-          selectedTool={selectedTool} 
-          onSelectTool={setSelectedTool} 
-        />
+    <div className="h-full w-full overflow-hidden">
+      {/* The toolbar is fixed positioned so we don't need a container for it */}
+      <InspirationToolbar 
+        selectedTool={selectedTool}
+        onSelectTool={setSelectedTool}
+      />
         
-        {/* Canvas - taking remaining width */}
-        <div 
-          className="flex-1 overflow-hidden relative"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
-          onClick={handleCanvasClick}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          ref={canvasRef}
+      {/* Canvas */}
+      <div 
+        className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden"
+        style={{ cursor: canvasCursor }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
+        onClick={handleCanvasClick}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        ref={canvasRef}
+      >
+        {/* Grid background with pan and zoom */}
+        <motion.div
+          className="absolute inset-0"
+          style={{ 
+            backgroundImage: 'radial-gradient(circle, #444 1px, transparent 1px)',
+            backgroundSize: `${30 * scale}px ${30 * scale}px`,
+            backgroundPosition: `${position.x % (30 * scale)}px ${position.y % (30 * scale)}px`,
+            backgroundColor: '#121212',
+            transition: 'background-size 0.1s ease-out'
+          }}
         >
-          {/* Grid background with pan and zoom */}
-          <motion.div
-            className="w-full h-full"
+          <motion.div 
             style={{ 
-              backgroundImage: 'radial-gradient(circle, #444 1px, transparent 1px)',
-              backgroundSize: `${30 * scale}px ${30 * scale}px`,
-              backgroundPosition: `${position.x % (30 * scale)}px ${position.y % (30 * scale)}px`,
-              transform: `scale(${scale})`,
-              transformOrigin: '0 0',
-              position: 'relative',
-              width: '100%',
-              height: '100%'
+              x: position.x, 
+              y: position.y,
+              scale,
+              transformOrigin: '0 0' 
             }}
+            className="absolute"
           >
-            <motion.div 
-              style={{ x: position.x, y: position.y }}
-              className="origin-top-left absolute top-0 left-0 w-full h-full"
-            >
-              {/* Render canvas items */}
-              {canvasItems.map(item => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`absolute ${selectedItemId === item.id ? 'ring-2 ring-blue-500' : ''}`}
-                  style={{ 
-                    left: item.position.x, 
-                    top: item.position.y,
-                    cursor: selectedTool === 'move' ? 'move' : 'default',
-                    zIndex: selectedItemId === item.id ? 10 : 1,
-                    width: item.type === 'image' && item.size ? item.size.width : 'auto',
-                    height: item.type === 'image' && item.size ? item.size.height : 'auto'
-                  }}
-                  drag={selectedTool === 'move'}
-                  dragMomentum={false}
-                  onDragEnd={(_, info) => handleDragEnd(item.id, info)}
-                  onClick={(e) => handleItemClick(item.id, e)}
-                >
-                  {item.type === 'text' ? (
-                    <div 
-                      contentEditable={selectedTool === 'text' && selectedItemId === item.id}
-                      className="p-2 min-w-[100px] bg-transparent outline-none"
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => updateItemContent(item.id, e.currentTarget.textContent || '')}
-                    >
-                      {item.content}
-                    </div>
-                  ) : item.type === 'image' ? (
-                    <>
-                      <img 
-                        src={item.content} 
-                        alt="Canvas item" 
-                        className="max-w-full h-auto object-contain"
-                        draggable={false}
+            {/* Render canvas items */}
+            {canvasItems.map(item => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`absolute ${selectedItemId === item.id ? 'ring-2 ring-blue-500' : ''}`}
+                style={{ 
+                  left: item.position.x, 
+                  top: item.position.y,
+                  cursor: selectedTool === 'move' ? 'move' : 'default',
+                  zIndex: selectedItemId === item.id ? 10 : 1,
+                  width: item.type === 'image' && item.size ? item.size.width : 'auto',
+                  height: item.type === 'image' && item.size ? item.size.height : 'auto'
+                }}
+                drag={selectedTool === 'move'}
+                dragMomentum={false}
+                onDragEnd={(_, info) => handleDragEnd(item.id, info)}
+                onClick={(e) => handleItemClick(item.id, e)}
+              >
+                {item.type === 'text' ? (
+                  <div 
+                    contentEditable={selectedTool === 'text' && selectedItemId === item.id}
+                    className="p-2 min-w-[100px] bg-transparent outline-none"
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => updateItemContent(item.id, e.currentTarget.textContent || '')}
+                  >
+                    {item.content}
+                  </div>
+                ) : item.type === 'image' ? (
+                  <>
+                    <img 
+                      src={item.content} 
+                      alt="Canvas item" 
+                      className="max-w-full h-auto object-contain"
+                      draggable={false}
+                    />
+                    {/* Resize handle - only shown when item is selected */}
+                    {selectedItemId === item.id && selectedTool === 'move' && (
+                      <div 
+                        className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-sm cursor-se-resize"
+                        onMouseDown={(e) => startResize(item.id, e)}
                       />
-                      {/* Resize handle - only shown when item is selected */}
-                      {selectedItemId === item.id && selectedTool === 'move' && (
-                        <div 
-                          className="absolute bottom-0 right-0 w-4 h-4 bg-blue-500 rounded-sm cursor-se-resize"
-                          onMouseDown={(e) => startResize(item.id, e)}
-                        />
-                      )}
-                    </>
-                  ) : null}
-                </motion.div>
-              ))}
-            </motion.div>
+                    )}
+                  </>
+                ) : null}
+              </motion.div>
+            ))}
           </motion.div>
-          
-          {/* Help overlay for image tool */}
-          {showImageHelp && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-              <div className="bg-background rounded-md p-4 shadow-lg text-center">
-                <p className="text-lg font-semibold">Drag and drop image in the canvas</p>
-                <p className="text-sm text-muted-foreground mt-1">or paste from clipboard</p>
-              </div>
+        </motion.div>
+        
+        {/* Help overlay for image tool */}
+        {showImageHelp && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+            <div className="bg-background rounded-md p-4 shadow-lg text-center">
+              <p className="text-lg font-semibold">Drag and drop image in the canvas</p>
+              <p className="text-sm text-muted-foreground mt-1">or paste from clipboard</p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-      
-      {/* Status indicator */}
-      {isSaving && (
-        <div className="absolute bottom-16 right-4 text-sm text-primary">
-          Saving...
-        </div>
-      )}
     </div>
   );
 } 
