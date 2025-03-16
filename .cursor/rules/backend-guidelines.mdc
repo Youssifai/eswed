@@ -1,0 +1,88 @@
+---
+description: backend guidelines
+globs: 
+alwaysApply: false
+---
+
+⸻
+
+Backend Guidelines
+
+This document details the best practices and standards for developing the backend of your Design Project Management App using Next.js API routes.
+
+1. Framework & Structure
+	•	Next.js API Routes:
+	•	Implement backend functionality using Next.js API routes (inside /pages/api).
+	•	Organize API endpoints by feature (e.g., /pages/api/projects, /pages/api/auth, /pages/api/files).
+	•	Express-like Middleware:
+	•	Although Next.js API routes are built on Node.js, structure your code similarly to an Express app if it improves clarity (e.g., use middleware functions for authentication and error handling).
+
+2. Authentication & Security
+	•	Clerk Integration:
+	•	Use Clerk to handle user authentication.
+	•	In API routes, validate the JWT provided by Clerk using Clerk’s SDK.
+	•	Ensure that endpoints are protected so that only authenticated requests are processed.
+	•	On first login, automatically create a corresponding user record in the neon.tech PostgreSQL database.
+	•	Security Best Practices:
+	•	Validate all incoming data to prevent SQL injection and XSS.
+	•	Use HTTPS for all communications.
+	•	Employ error-handling middleware to catch and log errors consistently.
+
+3. API Endpoints & Business Logic
+	•	Endpoint Standards:
+	•	Use RESTful conventions for API endpoints.
+	•	For each endpoint, clearly define expected inputs, outputs, and error responses.
+	•	Core Endpoints:
+	•	Project Management:
+	•	POST /api/projects: Create a new project (validate JWT, store project metadata, and trigger Wasabi folder creation).
+	•	GET /api/projects: List all projects for the authenticated user.
+	•	GET /api/projects/:projectId: Retrieve a specific project’s details.
+	•	PATCH /api/projects/:projectId/brief: Update the project brief.
+	•	PATCH /api/projects/:projectId/inspiration: Update inspiration layout data.
+	•	File Operations:
+	•	GET /api/projects/:projectId/files: Retrieve file metadata.
+	•	POST /api/projects/:projectId/files: Upload new files or create subfolders (using Multer and Wasabi SDK).
+	•	DELETE /api/projects/:projectId/files/:fileId: Delete a file.
+	•	PATCH /api/projects/:projectId/files/:fileId: Update file metadata (e.g., move files).
+	•	Integrations (Future):
+	•	Endpoints for design tool integrations (e.g., POST /api/projects/:projectId/integrations/figma/export).
+
+4. Database Integration
+	•	neon.tech (PostgreSQL):
+	•	Use neon.tech as the managed PostgreSQL instance.
+	•	Connect to the database using a PostgreSQL client or an ORM (e.g., Prisma, TypeORM).
+	•	Define and maintain a clear database schema for users, projects, files, and (optionally) file_versions.
+	•	Write migration scripts to handle schema changes and seed initial data.
+
+5. File Storage Integration
+	•	Wasabi Usage:
+	•	Utilize the Wasabi SDK (or AWS SDK configured for Wasabi) to handle file uploads, downloads, and folder management.
+	•	Upon project creation, auto-create a folder structure:
+	•	Root: user_{user_id}/project_{project_id}
+	•	Subfolders: Assets, PNG Exports, and Design Files
+	•	Generate pre-signed URLs for secure file access where needed.
+
+6. Code Organization & Best Practices
+	•	Modularization:
+	•	Break code into reusable modules (e.g., authentication middleware, database helpers, file storage utilities).
+	•	Keep business logic separate from API route handlers.
+	•	Naming & Comments:
+	•	Follow consistent naming conventions (camelCase for functions/variables, PascalCase for classes).
+	•	Include JSDoc-style comments for each function explaining its purpose, parameters, and return values.
+	•	Use inline comments sparingly for complex logic.
+	•	Logging & Error Handling:
+	•	Implement centralized error-handling middleware.
+	•	Use a logging library (e.g., Winston or Morgan) to log errors and important events.
+	•	Provide clear and consistent error messages for API consumers.
+
+7. Testing & Quality Assurance
+	•	Unit & Integration Testing:
+	•	Write unit tests for API endpoints using Jest and Supertest.
+	•	Test database operations and Wasabi interactions.
+	•	End-to-End Testing:
+	•	Develop e2e tests to simulate complete workflows (e.g., project creation, file upload, brief update).
+	•	Documentation:
+	•	Document all API endpoints and middleware functions.
+	•	Create a comprehensive README with setup instructions, environment variables, and usage guidelines.
+
+⸻

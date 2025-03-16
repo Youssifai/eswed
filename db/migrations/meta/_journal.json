@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1742077371912,
+      "tag": "0000_acoustic_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1742079121181,
+      "tag": "0001_smart_james_howlett",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1742082130713,
+      "tag": "0002_unusual_thanos",
+      "breakpoints": true
+    }
+  ]
+}

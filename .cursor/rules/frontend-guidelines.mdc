@@ -1,0 +1,62 @@
+---
+description: Frontend guidelines 
+globs: 
+alwaysApply: false
+---
+Frontend Guidelines
+
+This document provides the standards and best practices for building the frontend of your Design Project Management App using Next.js.
+
+1. Framework & Structure
+	•	Next.js Usage:
+	•	Utilize Next.js for building both the UI and API routes.
+	•	Leverage Next.js’s file-based routing to automatically manage navigation (e.g., pages for Home, Brief, Inspiration, Project Files).
+	•	Organize components within a clear folder structure (e.g., /components, /pages, /styles).
+	•	State Management:
+	•	Use React Context or Redux Toolkit (if needed) to manage global state.
+	•	Structure state slices (or contexts) by feature (e.g., user, project, file operations) for clarity.
+	•	Styling:
+	•	Choose either Styled Components or TailwindCSS for maintainable, component-scoped styles.
+	•	Maintain a consistent dark mode design by establishing a theme (e.g., colors, typography) accessible throughout the app.
+	•	Use a 4px grid system (or similar) to ensure spacing consistency.
+
+2. Component & Code Organization
+	•	Component Design:
+	•	Follow Atomic Design principles:
+	•	Atoms: Small, reusable UI elements (Buttons, Inputs).
+	•	Molecules: Combinations of atoms (e.g., FileUpload, TagSelector).
+	•	Organisms: Complex UI sections (e.g., ProjectDashboard, FileExplorer).
+	•	Use PascalCase for React component names (e.g., ProjectCard, InspirationCanvas).
+	•	File Naming & Organization:
+	•	Use kebab-case for filenames (e.g., project-dashboard.jsx, file-upload.js).
+	•	Separate concerns by placing utility functions in a /utils folder and API hooks in a /api folder.
+
+3. Coding Standards & Best Practices
+	•	Naming Conventions:
+	•	Variables & Functions: Use camelCase (e.g., projectName, handleFileUpload).
+	•	Constants: Use UPPER_SNAKE_CASE (e.g., API_BASE_URL).
+	•	Comments & Documentation:
+	•	Use JSDoc style comments at the top of each component and function to explain purpose, parameters, and return values.
+	•	Add inline comments for complex logic, ensuring they remain up-to-date.
+	•	Code Quality Tools:
+	•	Configure ESLint and Prettier to enforce consistent code formatting.
+	•	Write meaningful commit messages following conventional commit format (e.g., feat: add project creation form).
+
+4. Performance & Testing
+	•	Performance Optimizations:
+	•	Utilize Next.js’s code splitting and dynamic imports (next/dynamic) for lazy loading heavy components.
+	•	Optimize images and assets using Next.js’s Image component.
+	•	Minimize unnecessary re-renders with React.memo and useCallback where applicable.
+	•	Testing:
+	•	Write unit tests using Jest and React Testing Library.
+	•	Develop end-to-end tests for key flows (project creation, brief editing, file upload) with Cypress.
+	•	Ensure components are accessible (follow WCAG 2.1 guidelines).
+
+5. Integration & Data Orchestration
+	•	Real-Time Updates:
+	•	For the Inspiration page, implement either:
+	•	Periodic Auto-Save: Use HTTP calls at regular intervals to update data.
+	•	WebSockets: Consider Socket.IO for live updates if needed for future multi-user scenarios.
+	•	Using muster:
+	•	Integrate muster to orchestrate and manage complex data flows within the app.
+	•	Ensure that data queries and state updates are efficient and well-documented.

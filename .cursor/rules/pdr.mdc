@@ -1,0 +1,155 @@
+Product Design Requirements Document (PDR)
+
+Design Project Management App for Designers
+
+⸻
+
+1. Product Overview
+
+The Design Project Management App is a web-based tool tailored for designers to streamline their workflow. The app provides a centralized platform where designers can manage projects, organize files, create and update briefs, and curate inspirational moodboards. It integrates with popular design workflows by managing project files in a structured storage system and supports real-time updates for creative input.
+
+⸻
+
+2. Objectives
+	•	Simplify Project Organization:
+Allow designers to easily create projects, each with dedicated pages for briefs, inspiration (moodboards), and project files.
+	•	Enhance File Management:
+Automatically generate a structured file storage system in Wasabi, organizing files into default folders (Assets, PNG Exports, Design Files).
+	•	Provide Rich Content Editing:
+Enable a Notion-like text editor for project briefs and a dynamic canvas for moodboards with real-time or near real-time saving.
+	•	Ensure Secure User Management:
+Use Clerk for seamless user authentication and identity management.
+	•	Future-Proof with User Tiers:
+Although all features are currently available to free users, a framework is in place to support paid user roles in the future.
+
+⸻
+
+3. Target Users
+	•	Primary Users:
+Designers who need to manage multiple design projects, maintain a central repository of project briefs, moodboards, and design assets.
+	•	User Tiers:
+	•	Free Users: Currently, all functionalities (project creation, file management, brief editing, and moodboard updates) are available for free.
+	•	Paid Users: A premium tier is planned for the future. At present, no exclusive features are allocated for paid users.
+
+⸻
+
+4. Core Features
+
+Project Creation & Management
+	•	Home Page:
+Displays all projects for the logged-in user and includes a “+ New Project” button.
+	•	Automatic Page Generation:
+When a new project is created, three linked pages are automatically generated:
+	•	Brief: A master document where designers detail project requirements and notes.
+	•	Inspiration: A canvas for uploading images and adding text to serve as a moodboard.
+	•	Project Files: A dedicated file explorer that maps to a Wasabi folder with default subfolders (Assets, PNG Exports, Design Files).
+
+File Operations
+	•	File Upload & Organization:
+Drag-and-drop file uploads, creation of subfolders, and context menus (for download or delete operations).
+	•	Version Control (Optional):
+The app may support file version history, allowing designers to track and restore previous versions.
+
+Rich Content Editing
+	•	Brief Editing:
+A Notion-like rich text editor for creating and updating project briefs.
+	•	Inspiration Board:
+A flexible canvas where designers can place images and text blocks, with auto-save (or live update) capabilities.
+
+Integrations & Real-Time Updates
+	•	Design Tool Integrations:
+Planned endpoints for future integration with tools like Figma or Adobe Creative Cloud (details to be added later).
+	•	Real-Time Functionality:
+Options for periodic auto-save or WebSocket-based live updates on the Inspiration page.
+
+⸻
+
+5. Technical Architecture & Tech Stack
+
+Frontend & Full-Stack Framework
+	•	Next.js:
+Utilized as the primary framework to build both the frontend and backend API routes. This leverages server-side rendering and static site generation for improved performance and SEO.
+	•	State Management:
+Optionally use Redux Toolkit or Next.js’s built-in data fetching and React Context for managing global state.
+	•	Styling:
+Implement a consistent dark mode design using either Styled Components or TailwindCSS.
+
+Backend & API Routes
+	•	Next.js API Routes:
+Provide backend functionality within the Next.js project, handling RESTful endpoints for all CRUD operations related to projects, files, briefs, and inspiration data.
+	•	Authentication with Clerk:
+Clerk manages user sign-up, sign-in, and session handling. The Next.js API routes validate JWTs issued by Clerk to secure endpoints.
+
+Database
+	•	neon.tech:
+Use neon.tech as a managed PostgreSQL database solution to store user records, project metadata, file metadata, brief content, and inspiration layout data.
+
+File Storage
+	•	Wasabi:
+Implement Wasabi for file storage, using its S3-compatible API to:
+	•	Create and manage project-specific folder structures.
+	•	Upload and retrieve design assets.
+	•	Generate pre-signed URLs for secure file operations.
+
+Data Orchestration
+	•	muster:
+Leverage muster for orchestrating data flows within the app. Muster helps manage complex data queries and state updates across the application, ensuring smooth and efficient data handling.
+
+⸻
+
+6. User Roles and Access Levels
+	•	Free Users:
+	•	Have access to all current functionalities, including project creation, brief editing, moodboard management, and file operations.
+	•	All user records in the database are assigned the “free” role.
+	•	Paid Users:
+	•	Reserved for future premium features.
+	•	No exclusive functionality is assigned at this time; the framework exists to add premium features later.
+
+⸻
+
+7. Roadmap & Development Phases
+
+Phase 1: Environment Configuration
+	•	Set up Next.js project structure.
+	•	Configure ESLint, Prettier, and Docker (optional).
+	•	Establish environment variables for neon.tech, Clerk, Wasabi, and muster.
+
+Phase 2: Authentication, Database Setup, and Core API Endpoints
+	•	Integrate Clerk for user authentication.
+	•	Set up neon.tech PostgreSQL with defined schema and migration scripts.
+	•	Develop core API endpoints for project creation and user management.
+	•	Implement Wasabi integration for auto-creating project folder structures.
+
+Phase 3: Feature Implementation – Project Pages
+	•	Build Home/Dashboard, Brief, Inspiration, and Project Files pages.
+	•	Implement rich text editor for Brief.
+	•	Develop file explorer and drag-and-drop functionality for Project Files.
+	•	Set up API routes for uploading images and updating inspiration layouts.
+
+Phase 4: Integrations & Real-Time Updates
+	•	Add endpoints for design tool integrations (Figma, Adobe Creative Cloud—future work).
+	•	Implement auto-save or WebSocket-based updates for the Inspiration page.
+	•	Integrate muster for effective data orchestration.
+
+Phase 5: Testing, QA, & Documentation
+	•	Write unit, component, and end-to-end tests using Jest, React Testing Library, and Cypress.
+	•	Perform manual QA and performance testing.
+	•	Create comprehensive developer and user documentation.
+
+Phase 6: Deployment & Post-Launch Monitoring
+	•	Deploy the Next.js app and API routes.
+	•	Ensure neon.tech PostgreSQL, Wasabi storage, and Clerk integration are fully operational.
+	•	Set up logging, monitoring, and backup processes.
+	•	Collect user feedback and iterate on improvements.
+
+Phase 7: Future Enhancements & Scaling
+	•	Develop premium features for paid users.
+	•	Expand real-time collaboration capabilities.
+	•	Optimize performance and scalability with container orchestration (Docker/Kubernetes) if needed.
+	•	Enhance integrations with additional third-party design tools.
+
+⸻
+
+8. Conclusion
+
+This PDR document outlines the complete vision, objectives, features, and technical architecture of your Design Project Management App. By leveraging Next.js, neon.tech, Clerk, Wasabi, and muster, the product is designed to deliver a robust, scalable, and user-friendly solution tailored for designers. All functionalities are currently available for free users, with a framework in place for future premium enhancements. This comprehensive guide will serve as the foundation for your development process.

@@ -1,0 +1,140 @@
+---
+description: App Workflow Document. This document outlines the end-to-end workflows for the Design Project Management App. The app is built using Next.js (frontend and API routes), neon.tech (PostgreSQL database), Clerk (authentication), Wasabi (file storage), and muster (data orchestration). All features are currently available to free users—with a framework in place for future premium (paid) features.
+globs: 
+alwaysApply: false
+---
+1. Overview
+
+The app centralizes all design project activities into a single platform. It allows designers to create projects that automatically generate three core pages:
+	•	Brief: A master document where project details, requirements, and creative notes are captured using a rich text editor.
+	•	Inspiration: A dynamic canvas or moodboard for uploading images and adding text, with real-time or auto-save capabilities.
+	•	Project Files: A file explorer interface linked to Wasabi storage, where files are organized into a predefined folder structure.
+
+Users sign up and log in using Clerk, and each project is linked to their account. The app orchestrates data and file operations seamlessly, ensuring that projects and their assets are securely stored and easily accessible.
+
+⸻
+
+2. User Roles & Access
+	•	Free Users:
+	•	Have full access to all features, including project creation, brief editing, inspiration board, and file management.
+	•	Paid Users:
+	•	A placeholder exists for premium features; however, currently, no exclusive functionality is provided.
+
+⸻
+
+3. Detailed Workflows
+
+3.1 User Authentication & Onboarding
+	1.	Sign-Up / Login:
+	•	Frontend:
+	•	The user visits the app and is prompted to sign up or log in using Clerk’s authentication widget.
+	•	Backend:
+	•	Clerk issues a JWT that the Next.js API routes validate.
+	•	On first login, a new user record is created in the neon.tech PostgreSQL database with the Clerk user ID.
+	2.	User Dashboard (Home Page):
+	•	Display:
+	•	Once authenticated, the user is taken to the Home page, which lists all projects associated with their account.
+	•	Create New Project:
+	•	A prominent “+ New Project” button is available for creating a new project.
+
+⸻
+
+3.2 Project Creation Flow
+	1.	Initiating Project Creation:
+	•	Frontend:
+	•	The user clicks the “+ New Project” button.
+	•	A modal or form appears asking for the project name (and optionally a template selection).
+	•	Backend:
+	•	The Next.js API route POST /api/projects is called.
+	•	The API route validates the Clerk JWT, extracts the user ID, and creates a new project record in PostgreSQL with fields such as project name and timestamps.
+	2.	Automatic Folder Structure Creation:
+	•	Backend:
+	•	Upon successful creation of the project record, the API calls the Wasabi SDK to create a new folder structure:
+	•	Root Folder: user_{user_id}/project_{project_id}
+	•	Subfolders:
+	•	Assets
+	•	PNG Exports
+	•	Design Files
+	•	Response:
+	•	The new project details are returned to the frontend, including the project ID and default folder paths.
+	3.	Automatic Page Generation:
+	•	Workflow:
+	•	Simultaneously, the app auto-generates three linked pages for the new project:
+	•	Brief Page: For text and creative briefs.
+	•	Inspiration Page: For moodboards and visual references.
+	•	Project Files Page: For file management and storage interaction.
+	•	Navigation:
+	•	The user is redirected to the newly created project’s dashboard, with navigation links to each page.
+
+⸻
+
+3.3 Brief Page (Master Document)
+	1.	Editing the Brief:
+	•	Frontend:
+	•	The Brief page features a rich text editor (similar to Notion) where users type in project details, requirements, and creative notes.
+	•	Auto-Save / Save Button:
+	•	Changes can be auto-saved periodically via HTTP calls or saved manually using a “Save” button.
+	2.	Backend Update:
+	•	API Route:
+	•	The PATCH /api/projects/:projectId/brief endpoint receives updated brief content.
+	•	Database Operation:
+	•	The brief_content field in the projects table is updated with the new data (stored as HTML or JSON).
+	•	Feedback:
+	•	A confirmation message is sent back to the frontend upon successful update.
+
+⸻
+
+3.4 Inspiration Page (Moodboard)
+	1.	Canvas Interface:
+	•	Frontend:
+	•	The Inspiration page presents a canvas-like interface where designers can:
+	•	Upload images via drag-and-drop or file picker.
+	•	Add text blocks or annotations.
+	•	Arrange elements freely on the canvas.
+	•	Auto-Save/Real-Time Update:
+	•	The page either auto-saves changes at set intervals or uses a real-time mechanism (e.g., WebSockets) to update layout data.
+	2.	Image Upload Workflow:
+	•	Frontend:
+	•	When a user uploads an image, the file is sent to the API route POST /api/projects/:projectId/inspiration/upload.
+	•	Backend:
+	•	The file is processed (using Multer) and uploaded to Wasabi, stored in a designated subfolder (e.g., within Assets or a dedicated “Inspiration” folder).
+	•	The API returns a URL or reference to the uploaded image.
+	3.	Layout Data Management:
+	•	Frontend:
+	•	As users reposition elements or add text, the layout data (positions, sizes, content) is maintained in local state.
+	•	Backend:
+	•	A PATCH /api/projects/:projectId/inspiration API route updates the inspiration_data field in the projects table with the JSON representing the current layout.
+	•	Feedback:
+	•	The app confirms the update, ensuring the moodboard is saved.
+
+⸻
+
+3.5 Project Files Section
+	1.	File Explorer Interface:
+	•	Frontend:
+	•	The Project Files page shows a tree view representing the default folders (Assets, PNG Exports, Design Files) and any additional subfolders.
+	•	Users can navigate through folders, see file thumbnails, and view metadata.
+	•	File Operations:
+	•	Upload:
+	•	A drag-and-drop zone and “Upload File” button allow users to upload new files.
+	•	Context Menu:
+	•	Right-clicking on a file/folder reveals options like Download and Delete.
+	•	Drag-and-Drop Reorganization:
+	•	Users can reorganize files between folders; the interface updates the file’s metadata accordingly.
+	2.	Backend API Endpoints:
+	•	List Files:
+	•	GET /api/projects/:projectId/files retrieves file metadata from PostgreSQL.
+	•	File Upload & Folder Creation:
+	•	POST /api/projects/:projectId/files handles file uploads (using Multer for file handling) and can also create new subfolders.
+	•	Uploaded files are stored in Wasabi according to the current folder structure.
+	•	File Deletion:
+	•	DELETE /api/projects/:projectId/files/:fileId removes the file from Wasabi and deletes the corresponding record from PostgreSQL.
+	•	Update File Location (Drag-and-Drop):
+	•	PATCH /api/projects/:projectId/files/:fileId updates the file’s folder_path to reflect its new location.
+	3.	Data Orchestration with muster:
+	•	Role:
+	•	Muster helps manage data flow and state synchronization across the file explorer, ensuring a smooth user experience during file operations.
+
+⸻
+
+4. High-Level Workflow Diagram (Text Description)

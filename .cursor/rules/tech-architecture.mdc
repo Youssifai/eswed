@@ -1,0 +1,162 @@
+---
+description: This is the tech stack and tech architecture you're supposed to use
+globs: 
+alwaysApply: false
+---
+1. Technology & Architecture Planning
+
+1.1 Tech Stack Overview
+
+Frontend & Full-Stack Framework (Next.js)
+	•	Next.js:
+	•	Purpose: Use Next.js as the primary framework. Its built-in file-system based routing eliminates the need for a separate routing library, while supporting server-side rendering (SSR) and static site generation (SSG) for improved SEO and faster initial loads.
+	•	State Management:
+	•	Redux Toolkit (optional): Adopt Redux Toolkit if the application’s global state (e.g., user data, project details) becomes complex; otherwise, Next.js’s built-in data fetching methods and React Context may suffice.
+	•	Styling:
+	•	Styled Components or TailwindCSS:
+	•	Choose one for consistent, maintainable styling in your dark mode design.
+	•	Real-time Updates (for Inspiration Page):
+	•	Option A: Implement periodic auto-save via HTTP calls from client-side components.
+	•	Option B: Integrate WebSockets (e.g., Socket.IO) for continuous, “live” updates if needed for future multi-user scenarios.
+
+Backend & API Routes (Within Next.js)
+	•	Next.js API Routes:
+	•	Purpose: Leverage Next.js’s built-in API routes (located in the /pages/api directory) to handle backend logic, including CRUD operations for user and project data, file operations, and near real-time saving for the Inspiration page.
+	•	Authentication with Clerk:
+	•	Integration: Utilize Clerk for user authentication and identity management. Clerk provides JWTs that can be validated within your Next.js API routes.
+	•	File Storage with Wasabi:
+	•	SDK Compatibility: Use the Wasabi SDK (or an S3-compatible client like the AWS SDK configured for Wasabi) to:
+	•	Create project-specific folders.
+	•	Store images and other assets.
+	•	Generate pre-signed URLs for secure file downloads or direct uploads.
+	•	Database (PostgreSQL):
+	•	Usage: Store relational data such as user records (synced with Clerk IDs), project metadata, brief content, inspiration data, and file metadata.
+	•	Connection: Use a Node.js PostgreSQL client or an ORM (e.g., Prisma, TypeORM) within your Next.js API routes to connect to your PostgreSQL database.
+
+⸻
+
+1.2 Database Schema (High-Level)
+
+Below is a simplified schema outline for PostgreSQL. This schema remains the same regardless of the frontend framework:
+	1.	users
+	•	id (UUID, primary key) — references Clerk user ID.
+	•	email (varchar)
+	•	name (varchar)
+	•	created_at (timestamp)
+	•	updated_at (timestamp)
+	2.	projects
+	•	id (UUID, primary key)
+	•	owner_id (UUID) — references users.id
+	•	project_name (varchar)
+	•	brief_content (text or JSON) — stores content from the Notion-like editor.
+	•	inspiration_data (JSON) — stores layout data for images, text blocks, etc.
+	•	wasabi_folder_path (varchar) — e.g., user_{owner_id}/project_{id}
+	•	created_at (timestamp)
+	•	updated_at (timestamp)
+	3.	files
+	•	id (UUID, primary key)
+	•	project_id (UUID) — references projects.id
+	•	file_name (varchar)
+	•	wasabi_object_path (varchar) — e.g., user_{owner_id}/project_{id}/Design Files/filename.png
+	•	folder_path (varchar) — tracks subfolders (e.g., “Assets” or “PNG Exports”).
+	•	created_at (timestamp)
+	•	updated_at (timestamp)
+	4.	file_versions (optional, if version history is required)
+	•	id (UUID, primary key)
+	•	file_id (UUID) — references files.id
+	•	version_number (int)
+	•	wasabi_object_path (varchar)
+	•	created_at (timestamp)
+
+(Note: The “3 default folders” (Assets, PNG Exports, Design Files) can be auto-created via API logic rather than stored in the database.)
+
+⸻
+
+1.3 Integrating PostgreSQL, Wasabi, and Clerk in Next.js
+
+Clerk Authentication
+	•	During User Sign-Up/Login:
+	•	Clerk issues a JWT with the user’s ID.
+	•	Within your Next.js API routes (for example, in /pages/api/auth/verify.js), validate the JWT using Clerk’s SDK.
+	•	For first-time users, automatically create a record in the users table using the Clerk user ID.
+
+Project Creation Flow
+	1.	Frontend:
+	•	Call the Next.js API route POST /api/projects with a payload containing the project_name.
+	2.	Backend (API Route):
+	•	Verify the JWT to extract the user ID.
+	•	Create a new project record in PostgreSQL.
+	•	Use the Wasabi (S3-compatible) SDK to create a folder structure:
+	•	user_{user_id}/project_{project_id}/Assets
+	•	user_{user_id}/project_{project_id}/PNG Exports
+	•	user_{user_id}/project_{project_id}/Design Files
+	•	Return the new project’s details (ID, default subfolders, etc.) to the frontend.
+
+Updating Brief & Inspiration Data
+	•	Brief Page:
+	•	The user edits content in a rich text editor.
+	•	The Next.js frontend calls PATCH /api/projects/:projectId/brief with the updated content.
+	•	The API route updates projects.brief_content in PostgreSQL.
+	•	Inspiration Page (Moodboard):
+	•	Image Uploads:
+	•	The user uploads images via a form in the Next.js app.
+	•	The file is sent to an API route (e.g., POST /api/projects/:projectId/inspiration/upload), which uploads the image to Wasabi.
+	•	The API returns a URL or reference to the uploaded image.
+	•	Layout/Content Updates:
+	•	The Next.js app sends a JSON object with layout data to PATCH /api/projects/:projectId/inspiration.
+	•	The API route stores this in projects.inspiration_data.
+
+Project Files Section
+	•	File Explorer UI:
+	•	Built in Next.js to list files and folders by calling GET /api/projects/:projectId/files.
+	•	Additional API routes handle:
+	•	POST /api/projects/:projectId/files for uploading files or creating subfolders.
+	•	DELETE /api/projects/:projectId/files/:fileId for file deletion.
+	•	PATCH /api/projects/:projectId/files/:fileId for updating file metadata (e.g., when moving files via drag-and-drop).
+	•	Integration with Wasabi:
+	•	All file operations use the Wasabi SDK within API routes to perform actual file storage actions, while PostgreSQL tracks the metadata.
+
+⸻
+
+1.4 High-Level Architecture Diagram (Next.js Focused)
+
+┌─────────────────────────┐  
+│       Next.js App       │  
+│ (Frontend + API Routes) │  
+└─────────────────────────┘  
+            │  
+            │ (JWT via Clerk)  
+            ▼  
+┌─────────────────────────┐  
+│       Clerk (Auth)      │  
+│ (User Identity Mgmt)    │  
+└─────────────────────────┘  
+            │  
+            ▼  
+┌─────────────────────────┐  
+│ Next.js API Routes      │  
+│ (Express-like endpoints)│  
+└─────────────────────────┘  
+            │  
+            │ (Database queries via ORM/driver)  
+            ▼  
+┌─────────────────────────┐  
+│  PostgreSQL Database    │  
+│ (Projects, Files, etc.) │  
+└─────────────────────────┘  
+            │  
+            │ (File uploads/downloads)  
+            ▼  
+┌─────────────────────────┐  
+│ Wasabi (S3-Compatible)  │  
+│     File Storage        │  
+└─────────────────────────┘  
+
+	•	Next.js App:
+	•	Serves both the user interface and backend functionality via API routes.
+	•	Clerk:
+	•	Handles user authentication; API routes validate JWTs issued by Clerk.
+	•	Next.js API Routes:
+	•	Process requests, interact with PostgreSQL for data, and manage file operations with Wasabi.
+	•	PostgreSQL & Wasabi:
+	•	Manage application data and file storage, respectively.
