@@ -22,6 +22,20 @@
       "when": 1742082130713,
       "tag": "0002_unusual_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1742091234567,
+      "tag": "0003_add_file_metadata_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1742169976121,
+      "tag": "0004_mixed_king_cobra",
+      "breakpoints": true
     }
   ]
 }

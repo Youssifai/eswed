@@ -241,7 +241,7 @@ const Folder = forwardRef<
       <AccordionPrimitive.Item
         {...props}
         value={value}
-        className="relative h-full overflow-hidden"
+        className="relative h-full overflow-hidden file-tree-item"
       >
         <AccordionPrimitive.Trigger
           className={cn(
@@ -266,7 +266,7 @@ const Folder = forwardRef<
           <AccordionPrimitive.Root
             dir={direction}
             type="multiple"
-            className="ml-5 flex flex-col gap-1 py-1 rtl:mr-5 "
+            className="ml-5 flex flex-col gap-1 py-1 rtl:mr-5"
             defaultValue={expandedItems}
             value={expandedItems}
             onValueChange={(value) => {
@@ -309,25 +309,20 @@ const File = forwardRef<
     const { direction, selectedId, selectItem } = useTree();
     const isSelected = isSelect ?? selectedId === value;
     return (
-      <button
-        ref={ref}
-        type="button"
-        disabled={!isSelectable}
-        className={cn(
-          "flex w-fit items-center gap-1 rounded-md pr-1 text-sm duration-200 ease-in-out rtl:pl-1 rtl:pr-0",
-          {
-            "bg-muted": isSelected && isSelectable,
-          },
-          isSelectable ? "cursor-pointer" : "cursor-not-allowed opacity-50",
-          direction === "rtl" ? "rtl" : "ltr",
-          className,
-        )}
-        onClick={() => selectItem(value)}
-        {...props}
-      >
-        {fileIcon ?? <FileIcon className="size-4" />}
-        {children}
-      </button>
+      <li className={`file-tree-item group flex items-center gap-2 rounded-sm mx-1 ${isSelect ? 'bg-neutral-800' : 'hover:bg-neutral-800/30 hover:text-white/90 hover:rounded-sm'}`}>
+        <div className="w-4 h-4 flex items-center justify-center">{fileIcon}</div>
+        <div className="flex w-full justify-between pl-1">
+          <button
+            value={value}
+            onClick={() => {
+              if (handleSelect) handleSelect(value);
+            }}
+            className="flex-grow py-1 text-left w-full truncate"
+          >
+            {children}
+          </button>
+        </div>
+      </li>
     );
   },
 );

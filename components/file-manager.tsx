@@ -9,6 +9,7 @@ import MoveFileDialog from "./move-file-dialog";
 import { toast } from "sonner";
 import { moveFile } from "@/actions/file-actions";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 type FileType = {
   id: string;
@@ -18,6 +19,8 @@ type FileType = {
   projectId: string;
   wasabiObjectPath?: string | null;
   mimeType?: string | null;
+  description?: string | null;
+  tags?: string | null;
   children?: FileType[];
 };
 
@@ -35,6 +38,7 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [fileToMove, setFileToMove] = useState<FileType | null>(null);
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dragCounterRef = useRef<Record<string, number>>({});
   
   // Track all folders in a flat structure for the move dialog
   const allFoldersRef = useRef<{
@@ -45,12 +49,36 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
   
   // Clean up any timeout on unmount
   useEffect(() => {
+    // Add global drag event listeners to ensure we capture all drag events
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault(); // Necessary to allow dropping
+    };
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      // Reset state when dropping outside valid drop targets
+      dragCounterRef.current = {};
+      setDragOverFolderId(null);
+    };
+
+    document.addEventListener('dragover', handleGlobalDragOver);
+    document.addEventListener('drop', handleGlobalDrop);
+
     return () => {
+      document.removeEventListener('dragover', handleGlobalDragOver);
+      document.removeEventListener('drop', handleGlobalDrop);
+      
       if (dragTimeoutRef.current) {
         clearTimeout(dragTimeoutRef.current);
       }
     };
   }, []);
+  
+  // Helper to get folder name by id
+  const getFolderName = useCallback((folderId: string | null) => {
+    if (!folderId) return "Root";
+    const folder = rootFiles.find(f => f.id === folderId);
+    return folder?.name || "Unknown Folder";
+  }, [rootFiles]);
   
   // Transform files into a tree structure
   const transformToTreeStructure = useCallback((files: FileType[]) => {
@@ -122,16 +150,151 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
   };
   
   const handleDragStart = (event: React.DragEvent, file: FileType) => {
-    event.dataTransfer.setData("fileId", file.id);
-    setDraggedFile(file);
+    // Stop event propagation to prevent parent elements from being affected
+    event.stopPropagation();
+    
+    // Set the data transfer properties for drag operation
+    // Required for Firefox and Safari compatibility
+    event.dataTransfer.setData("text/plain", file.id);
+    event.dataTransfer.setData("application/json", JSON.stringify({
+      fileId: file.id,
+      fileName: file.name,
+      fileType: file.type
+    }));
+    event.dataTransfer.effectAllowed = "move";
+    
+    console.log("Drag started for file:", file.name);
+    
+    // Add drag preview text to show what's being dragged
+    const element = document.createElement("div");
+    element.textContent = `Moving: ${file.name}`;
+    element.style.position = "absolute";
+    element.style.top = "0";
+    element.style.left = "0";
+    element.style.padding = "8px 12px";
+    element.style.background = "rgba(59, 130, 246, 0.8)";
+    element.style.borderRadius = "4px";
+    element.style.color = "white";
+    element.style.pointerEvents = "none";
+    element.style.zIndex = "9999";
+    document.body.appendChild(element);
+    
+    // Use a transparent image as fallback for browsers that don't support setDragImage
+    try {
+      event.dataTransfer.setDragImage(element, 20, 20);
+    } catch (e) {
+      console.error("Error setting drag image:", e);
+    }
+    
+    setTimeout(() => {
+      document.body.removeChild(element);
+    }, 0);
+    
+    // Set the draggedFile state with a slight delay to ensure data transfer is set first
+    setTimeout(() => {
+      setDraggedFile(file);
+    }, 0);
+    
+    // Add a class to indicate the item is being dragged
+    const dragElement = event.currentTarget as HTMLElement;
+    dragElement.classList.add("dragging");
+    
+    // Highlight potential drop targets
+    const folderElements = document.querySelectorAll('.folder-drop-target');
+    folderElements.forEach((el) => {
+      (el as HTMLElement).style.transition = 'background-color 0.2s ease, transform 0.2s ease';
+    });
+    
+    // Clean up styles when drag ends
+    const cleanup = () => {
+      console.log("Drag ended");
+      dragElement.classList.remove("dragging");
+      
+      // Remove highlights from potential drop targets
+      const folderElements = document.querySelectorAll('.folder-drop-target');
+      folderElements.forEach((el) => {
+        (el as HTMLElement).style.transition = '';
+      });
+      
+      setTimeout(() => setDraggedFile(null), 50);
+      document.removeEventListener("dragend", cleanup);
+    };
+    
+    document.addEventListener("dragend", cleanup);
+    
+    // Add additional listener to handle cases where dragend doesn't fire
+    document.addEventListener("mouseup", cleanup, { once: true });
   };
   
   const handleDragOver = (event: React.DragEvent, folderId: string | null) => {
+    // Must call preventDefault to allow drop
     event.preventDefault();
+    event.stopPropagation();
     
-    // Only allow dropping into folders, not files
+    // Get dragged file from state or data transfer
+    let currentDraggedFile = draggedFile;
+    if (!currentDraggedFile) {
+      try {
+        const dataStr = event.dataTransfer.getData("application/json");
+        if (dataStr) {
+          const data = JSON.parse(dataStr);
+          if (data.fileId) {
+            // Find the file in our data structure
+            const findFile = (items: FileType[]): FileType | null => {
+              for (const item of items) {
+                if (item.id === data.fileId) return item;
+                if (item.children?.length) {
+                  const found = findFile(item.children);
+                  if (found) return found;
+                }
+              }
+              return null;
+            };
+            
+            currentDraggedFile = findFile(rootFiles);
+          }
+        }
+      } catch (e) {
+        console.error("Error processing drag data:", e);
+      }
+    }
+    
+    if (!currentDraggedFile) return;
+    
+    // Use a counter to track multiple drag events on the same folder
+    const key = folderId || "root";
+    if (!dragCounterRef.current[key]) {
+      dragCounterRef.current[key] = 0;
+    }
+    dragCounterRef.current[key]++;
+    
+    // Only update the drag over state if the folder changes
     if (folderId !== dragOverFolderId) {
+      console.log("Dragging over folder:", folderId);
       setDragOverFolderId(folderId);
+    }
+    
+    // Set the drop effect to indicate a move operation
+    event.dataTransfer.dropEffect = "move";
+  };
+  
+  const handleDragLeave = (event: React.DragEvent, folderId: string | null) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Decrement the counter for this folder
+    if (dragCounterRef.current[folderId || "root"]) {
+      dragCounterRef.current[folderId || "root"]--;
+    }
+    
+    // Only clear the drag over state if the counter reaches 0
+    if (dragCounterRef.current[folderId || "root"] === 0) {
+      if (dragOverFolderId === folderId) {
+        // Clear the drag over state after a small delay to prevent flickering
+        dragTimeoutRef.current = setTimeout(() => {
+          setDragOverFolderId(null);
+        }, 50);
+      }
     }
   };
   
@@ -145,42 +308,88 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
   
   const handleDrop = async (event: React.DragEvent, targetFolderId: string | null) => {
     event.preventDefault();
+    event.stopPropagation();
+    
+    // Reset drag counters
+    dragCounterRef.current = {};
+    
+    // Clear the drag over state
     setDragOverFolderId(null);
     
-    if (!draggedFile) return;
+    if (!draggedFile) {
+      try {
+        // Try to extract file id from dataTransfer
+        const fileId = event.dataTransfer.getData("text/plain");
+        const dataStr = event.dataTransfer.getData("application/json");
+        
+        if (fileId) {
+          // Find the file in our data structure
+          const file = rootFiles.find(f => f.id === fileId);
+          if (file) {
+            console.log("Dropping file by ID:", file.name);
+            await processDrop(file, targetFolderId);
+            return;
+          }
+        } else if (dataStr) {
+          try {
+            const data = JSON.parse(dataStr);
+            if (data.fileId) {
+              const file = rootFiles.find(f => f.id === data.fileId);
+              if (file) {
+                console.log("Dropping file by JSON data:", file.name);
+                await processDrop(file, targetFolderId);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing JSON data:", e);
+          }
+        }
+        
+        // Check if files were dropped from outside the app
+        if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+          console.log("External files dropped - handle with upload logic");
+          // Handle external file drops here if needed
+          return;
+        }
+      } catch (e) {
+        console.error("Error processing drop data:", e);
+      }
+      return;
+    }
     
+    await processDrop(draggedFile, targetFolderId);
+  };
+  
+  // Helper function to process the drop operation
+  const processDrop = async (file: FileType, targetFolderId: string | null) => {
     // Don't allow dropping onto itself
-    if (draggedFile.id === targetFolderId) {
+    if (file.id === targetFolderId) {
       return;
     }
     
     // Don't allow dropping a folder into its own child (would create circular reference)
-    if (draggedFile.type === "folder" && targetFolderId) {
-      if (isDescendant(draggedFile.id, targetFolderId)) {
+    if (file.type === "folder" && targetFolderId) {
+      if (isDescendant(file.id, targetFolderId)) {
         toast.error("Cannot move a folder into its own subfolder");
         return;
       }
     }
     
     // Don't move if the target is already the parent
-    if (draggedFile.parentId === targetFolderId) {
+    if (file.parentId === targetFolderId) {
       return;
     }
     
     try {
-      // Optimistic UI update - we'll update the UI first, then the database
-      // In a real app, you'd want to store the original state to revert if the API call fails
+      // Show immediate visual feedback that the drop was accepted
+      toast.loading(`Moving ${file.name} to ${getFolderName(targetFolderId)}...`);
       
       // Call the server action to update the database
-      await moveFile(draggedFile.id, projectId, targetFolderId);
+      await moveFile(file.id, projectId, targetFolderId);
       
       // Show success message with the target folder name
-      let targetName = "root";
-      if (targetFolderId) {
-        const targetFolder = rootFiles.find(f => f.id === targetFolderId);
-        if (targetFolder) targetName = targetFolder.name;
-      }
-      toast.success(`Moved "${draggedFile.name}" to ${targetName}`);
+      toast.success(`Moved "${file.name}" to ${getFolderName(targetFolderId)}`);
       
       // Refresh the router to get the updated data
       router.refresh();
@@ -220,16 +429,35 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
             onMoveFile={() => handleMoveFile(item)}
           >
             <div
-              draggable
-              onDragStart={(e) => handleDragStart(e, item)}
-              onDragOver={(e) => handleDragOver(e, item.id)}
-              onDrop={(e) => handleDrop(e, item.id)}
+              draggable={true}
+              onDragStart={(e) => {
+                e.stopPropagation(); // Stop bubbling to prevent parent folders from catching the event
+                handleDragStart(e, item);
+              }}
+              onDragOver={(e) => {
+                e.stopPropagation(); // Stop bubbling
+                handleDragOver(e, item.id);
+              }}
+              onDragLeave={(e) => {
+                e.stopPropagation(); // Stop bubbling
+                handleDragLeave(e, item.id);
+              }}
+              onDrop={(e) => {
+                e.stopPropagation(); // Stop bubbling
+                handleDrop(e, item.id);
+              }}
+              onClick={(e) => e.stopPropagation()}
               className={cn(
-                "relative",
-                isDropTarget && isValidDropTarget && "bg-blue-800/20 rounded-md",
-                isDropTarget && !isValidDropTarget && "bg-red-800/20 rounded-md"
+                "relative rounded-md transition-colors duration-200 file-tree-item folder-drop-target",
+                isDropTarget && isValidDropTarget && "bg-blue-800/20 outline-blue-500/50 scale-102 drag-over",
+                isDropTarget && !isValidDropTarget && "bg-red-800/20 outline-red-500/50"
               )}
             >
+              {isDropTarget && isValidDropTarget && (
+                <div className="absolute top-1 right-1 py-0.5 px-1.5 bg-blue-500 text-white text-xs rounded-full opacity-90 z-10">
+                  Drop here
+                </div>
+              )}
               <Folder 
                 key={item.id} 
                 value={item.id}
@@ -256,8 +484,13 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
             onMoveFile={() => handleMoveFile(item)}
           >
             <div
-              draggable
-              onDragStart={(e) => handleDragStart(e, item)}
+              draggable={true}
+              onDragStart={(e) => {
+                e.stopPropagation(); // Stop bubbling to prevent parent folders from catching the event
+                handleDragStart(e, item);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative transition-transform duration-200 file-tree-item"
             >
               <TreeFile
                 key={item.id}
@@ -266,7 +499,26 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
                 isSelect={selectedFile === item.id}
                 fileIcon={<FileIcon className="h-4 w-4" />}
               >
-                {item.name}
+                <div className="flex items-center justify-between w-full pr-2">
+                  <span className="truncate max-w-[180px]">{item.name}</span>
+                  {item.tags && (
+                    <div className="flex gap-1 ml-2 flex-shrink-0">
+                      {item.tags.split(',').slice(0, 2).map((tag, index) => (
+                        <span 
+                          key={index} 
+                          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary"
+                        >
+                          {tag.trim()}
+                        </span>
+                      ))}
+                      {item.tags.split(',').length > 2 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{item.tags.split(',').length - 2}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </TreeFile>
             </div>
           </FileContextMenu>
@@ -280,15 +532,21 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
       <div 
         className="h-full flex flex-col overflow-hidden border border-neutral-800 rounded-lg bg-neutral-900"
         onDragOver={(e) => handleDragOver(e, null)}
+        onDragLeave={(e) => handleDragLeave(e, null)}
         onDrop={(e) => handleDrop(e, null)}
       >
         <div className="p-4 border-b border-neutral-800">
           <h3 className="text-lg font-medium">Files</h3>
         </div>
         <div className={cn(
-          "flex-1 overflow-auto p-2",
-          draggedFile && dragOverFolderId === null && "bg-blue-800/10"
+          "flex-1 overflow-auto p-2 transition-colors duration-300",
+          draggedFile && dragOverFolderId === null && "bg-blue-800/10 outline-dashed outline-2 outline-blue-500/30"
         )}>
+          {draggedFile && dragOverFolderId === null && (
+            <div className="flex items-center justify-center mt-4 mb-2 text-sm text-blue-400">
+              <span>Drop here to move to root folder</span>
+            </div>
+          )}
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <p>Loading files...</p>

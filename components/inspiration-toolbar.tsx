@@ -16,6 +16,7 @@ export default function InspirationToolbar({ selectedTool, onSelectTool }: Inspi
     {
       id: "move" as Tool,
       name: "Move",
+      shortcut: "V",
       available: true,
       icon: (
         <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -26,6 +27,7 @@ export default function InspirationToolbar({ selectedTool, onSelectTool }: Inspi
     {
       id: "text" as Tool,
       name: "Text",
+      shortcut: "T",
       available: true,
       icon: (
         <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -36,6 +38,7 @@ export default function InspirationToolbar({ selectedTool, onSelectTool }: Inspi
     {
       id: "image" as Tool,
       name: "Image",
+      shortcut: "I",
       available: true,
       icon: (
         <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -111,6 +114,11 @@ export default function InspirationToolbar({ selectedTool, onSelectTool }: Inspi
                 </TooltipTrigger>
                 <TooltipContent side="right">
                   <p>{tool.name} {!tool.available ? "(Coming Soon)" : ""}</p>
+                  {tool.shortcut && (
+                    <p className="text-xs text-gray-400">
+                      Press {tool.shortcut} to select
+                    </p>
+                  )}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

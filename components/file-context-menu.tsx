@@ -10,7 +10,7 @@ import {
 import { Download, Trash2, FolderUp } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { deleteFile, moveFile } from "@/actions/file-actions";
+import { deleteFile, moveFile, getFileDownloadUrl } from "@/actions/file-actions";
 
 interface FileContextMenuProps {
   children: React.ReactNode;
@@ -36,23 +36,51 @@ export default function FileContextMenu({
   const router = useRouter();
 
   const handleDownload = async () => {
+    // Check if this is a file that can be downloaded
     if (!wasabiObjectPath || fileType === "folder") {
-      toast.error("This item cannot be downloaded");
+      toast.error(fileType === "folder" 
+        ? "Folders cannot be downloaded directly" 
+        : "This file doesn't have a storage location"
+      );
       return;
     }
 
+    console.log(`Requesting download for ${fileName}`);
+
     try {
-      // In a real implementation, this would generate a pre-signed URL from Wasabi
-      // For now, we'll just show a success message
-      toast.success("Download started");
+      // Get the pre-signed URL
+      const response = await getFileDownloadUrl(fileId, projectId);
       
-      // Example of how you'd handle a real download with a pre-signed URL:
-      // const response = await fetch(`/api/projects/${projectId}/files/${fileId}/download`);
-      // const { downloadUrl } = await response.json();
-      // window.open(downloadUrl, '_blank');
+      if (!response.success) {
+        console.error("Download failed:", response);
+        // Handle error message
+        toast.error(response.message || "Failed to download file");
+        return;
+      }
+
+      if (!response.downloadUrl) {
+        toast.error("No download URL was returned");
+        return;
+      }
+
+      // Create an anchor element to trigger the download
+      const link = document.createElement('a');
+      link.href = response.downloadUrl;
+      link.setAttribute('download', fileName);
+      link.setAttribute('target', '_blank');
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      window.setTimeout(() => {
+        document.body.removeChild(link);
+      }, 100);
+
+      toast.success(`Downloading ${fileName}...`);
+      
     } catch (error) {
-      toast.error("Failed to download file");
       console.error("Download error:", error);
+      toast.error(error instanceof Error ? error.message : "An unknown error occurred");
     }
   };
 

@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { filesTable, profilesTable, projectsTable } from "./schema";
 import * as relations from "./schema/relations";
+import { sql } from "drizzle-orm";
 
 config({ path: ".env.local" });
 
@@ -31,17 +32,21 @@ const client = postgres(connectionString, {
 
 export const db = drizzle(client, { schema });
 
-// Utility function to check database connection
+// Add a function to check the database connection
 export async function checkDatabaseConnection() {
   try {
-    // Simple query to check connection
-    await client`SELECT 1`;
-    return { connected: true, error: null };
+    // Execute a simple query to check if connection is working
+    const result = await db.execute(sql`SELECT 1 as connection_test`);
+    return { 
+      connected: true, 
+      message: "Database connection successful"
+    };
   } catch (error) {
     console.error("Database connection error:", error);
     return { 
       connected: false, 
-      error: error instanceof Error ? error.message : "Unknown database error" 
+      message: error instanceof Error ? error.message : "Unknown database error",
+      error
     };
   }
 }

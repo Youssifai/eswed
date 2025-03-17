@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { getProjectById } from "@/db/queries/projects-queries";
 import { createFile } from "@/db/queries/files-queries";
+import { determineAutoSortFolder } from "@/actions/file-actions";
+import { generateWasabiPath, getUploadUrl } from "@/lib/wasabi-client";
+
+// Tell Next.js to use dynamic rendering for this route
+export const dynamic = 'force-dynamic';
 
 export async function POST(
   req: NextRequest,
@@ -36,7 +41,7 @@ export async function POST(
 
     // Parse request body
     const body = await req.json();
-    const { fileName, fileType, parentId } = body;
+    const { fileName, fileType, parentId, description, tags } = body;
 
     if (!fileName || !fileType) {
       return NextResponse.json(
@@ -45,51 +50,56 @@ export async function POST(
       );
     }
 
-    // In a real implementation, we would generate a pre-signed URL from Wasabi here
-    // using AWS SDK and return it to the client
-    
-    // Example with AWS SDK:
-    // const s3 = new AWS.S3({
-    //   accessKeyId: process.env.WASABI_ACCESS_KEY,
-    //   secretAccessKey: process.env.WASABI_SECRET_KEY,
-    //   endpoint: process.env.WASABI_ENDPOINT,
-    //   s3ForcePathStyle: true,
-    //   signatureVersion: 'v4'
-    // });
-    //
-    // const wasabiPath = `user_${userId}/project_${params.projectId}/${parentId || 'root'}/${fileName}`;
-    //
-    // // Create a pre-signed URL for upload
-    // const uploadUrl = await s3.getSignedUrlPromise('putObject', {
-    //   Bucket: process.env.WASABI_BUCKET_NAME,
-    //   Key: wasabiPath,
-    //   ContentType: fileType,
-    //   Expires: 60 * 15 // URL expires in 15 minutes
-    // });
-    
-    // Create a file record in the database
-    const file = await createFile({
-      projectId: params.projectId,
-      name: fileName,
-      type: "file",
-      parentId: parentId || null,
-      mimeType: fileType,
-      size: "0", // Will be updated after upload
-      wasabiObjectPath: `${params.projectId}/${fileName}` // This would be a real path in production
-    });
+    // If no specific parentId is provided, determine the best folder to put the file in
+    let targetParentId = parentId;
+    if (!parentId) {
+      console.log(`No parent ID provided, auto-sorting ${fileName}`);
+      targetParentId = await determineAutoSortFolder(params.projectId, fileName, fileType);
+      console.log(`Auto-sorted to folder with ID: ${targetParentId || 'root'}`);
+    }
 
-    // Mock response
-    const uploadUrl = `https://example-wasabi-storage.com/${params.projectId}/${fileName}?mock-presigned-url`;
+    // Generate a Wasabi path for the file
+    const wasabiObjectPath = generateWasabiPath(
+      userId, 
+      params.projectId, 
+      fileName, 
+      targetParentId
+    );
 
-    return NextResponse.json({ 
-      fileId: file.id,
-      uploadUrl,
-      wasabiObjectPath: `${params.projectId}/${fileName}`
-    });
+    // Generate a pre-signed upload URL using the utility function
+    try {
+      const presignedUrl = await getUploadUrl(wasabiObjectPath, fileType);
+
+      // Create a file record in the database - METADATA ONLY
+      const file = await createFile({
+        projectId: params.projectId,
+        name: fileName,
+        type: "file",
+        parentId: targetParentId || null,
+        mimeType: fileType,
+        size: "0", // Will be updated after upload
+        wasabiObjectPath: wasabiObjectPath,
+        description: description || null,
+        tags: tags || null,
+      });
+
+      return NextResponse.json({
+        fileId: file.id,
+        uploadUrl: presignedUrl,
+        wasabiObjectPath: wasabiObjectPath,
+        targetFolder: targetParentId || "root"
+      });
+    } catch (wasabiError) {
+      console.error("Error generating pre-signed URL:", wasabiError);
+      return NextResponse.json(
+        { error: "Failed to generate upload URL" },
+        { status: 500 }
+      );
+    }
   } catch (error) {
-    console.error("Error generating upload URL:", error);
+    console.error("Error processing upload request:", error);
     return NextResponse.json(
-      { error: "Failed to generate upload URL" },
+      { error: "Failed to process upload request" },
       { status: 500 }
     );
   }

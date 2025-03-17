@@ -277,6 +277,34 @@
 - Improved touch targets and accessibility for toolbar items
 - Added visual feedback when using different tools 
 
+## Inspiration Canvas Improvements
+
+### Enhanced Canvas Resizing and Free-Form Positioning
+
+#### Resizing Improvements
+- Fixed resizing behavior so items maintain their expected position when resized
+- Improved corner-based resizing to properly expand/contract from the appropriate corner
+- Added more precise control over element dimensions during resizing
+- Fixed edge cases when resizing text elements versus image elements
+
+#### Miro-Style Free-Form Movement
+- Implemented true free-form item movement without grid snapping
+- Removed position rounding for pixel-perfect placement
+- Enhanced drag handling for smoother item movement
+- Improved the drag transition settings to remove momentum and elastic effects
+
+#### UI and Content Improvements
+- Reduced excess padding and margins around text and image elements
+- Improved the bounding boxes to fit more snugly around content
+- Enhanced the text element to have better internal content alignment
+- Fixed image sizing to maintain proper aspect ratio while fitting the container
+
+#### Performance Optimizations
+- Added proper box-sizing to prevent layout issues
+- Improved mouse event handling for more responsive interactions
+- Prevented unnecessary text selection during drag operations 
+- Optimized the element positioning system for smoother performance
+
 ## File Management Implementation
 
 ### File Management UI Components
@@ -395,3 +423,276 @@
 - Created recursive sorting for better file organization
 - Improved path revalidation to ensure UI updates after file operations
 - Enhanced default folder creation for new projects 
+
+## Advanced File Management with Auto-Sorting and Metadata
+
+### Improved Auto-Sorting System
+- Enhanced auto-sorting logic to properly identify system folders
+- Implemented more robust folder detection with flexible name matching
+- Added intelligent auto-classification based on file extensions and keywords
+- Created debug utility for testing auto-sorting functionality
+- Fixed issues with the `isSystemFolder` flag detection
+
+### Default Folder Structure Fixes
+- Ensured all projects have the required standard folders:
+  - Documents: For proposals, briefs, contracts, and invoices
+  - Assets: For images, logos, and media files
+  - Design: For Adobe CC and Figma files
+  - Print: For PDFs and font files
+- Added additional keywords for better file classification
+- Created a migration script to update existing projects with missing folders
+
+### Enhanced Metadata Display
+- Added visual tags display next to file names in the file manager
+- Implemented tag limiting with overflow indicator for better UI
+- Improved file interface with proper tag styling
+- Fixed alignment and spacing issues with file metadata display
+
+### Auto-Sorting Rules
+- Documents folder: Automatically sorts files with keywords like "proposal", "brief", "contract", etc.
+- Assets folder: Automatically sorts image files (.jpg, .png, etc.) and files with "logo" or "asset" in the name
+- Design folder: Automatically sorts design files (.ai, .psd, .fig, etc.) and files with "design" in the name
+- Print folder: Automatically sorts PDFs and font files (.pdf, .otf, .ttf, etc.)
+
+# Brief Editor Slash Command Implementation
+
+## Added Notion-like Slash Command Feature
+- Created a custom command popup component that appears when typing "/"
+- Implemented real-time filtering as the user types
+- Added keyboard navigation support for command selection
+- Styled the popup to match the design requirements in the reference image
+
+## Command Popup UI Features
+- Displays available formatting commands like Heading 1-3, Bold, Italic, etc.
+- Shows keyboard shortcuts for quick reference
+- Supports nested submenus for font size and text alignment options
+- Provides visual feedback with hover and selection states
+- Includes proper navigation with arrow keys, Enter, and Escape
+
+## Brief Editor Enhancements
+- Removed markdown syntax and applied direct text styling
+- Added a Format button for quick access to formatting tools
+- Improved text formatting implementation with proper cursor positioning
+- Enhanced the visual appearance of headings and paragraphs
+- Fixed positioning of popup based on the cursor location
+
+## User Experience Improvements
+- Commands are immediately applied without showing markdown syntax
+- The "/" character is removed after command selection for cleaner text
+- Better visual hierarchy with properly styled headings
+- Consistent UI matching the app's overall design language 
+
+# Miro-like Inspiration Canvas Refinements
+
+## Advanced Positioning and Interaction Improvements
+
+### Free-Form Movement Enhancements
+- Removed all remaining grid snapping for true pixel-perfect positioning
+- Improved resizing behavior to maintain proper anchoring points
+- Fixed issues with items moving unexpectedly during resize operations
+- Implemented true Miro-style corner-based resizing with fixed anchor points
+
+### Space + Scroll Interaction Fix
+- Fixed canvas panning behavior when space key is pressed
+- Implemented proper item disabling during canvas panning
+- Added proper mouse wheel behaviors:
+  - Ctrl/Cmd + wheel for zooming
+  - Regular wheel for vertical scrolling
+- Prevented unwanted item interaction during panning
+
+### Visual Improvements
+- Enhanced resize handles with improved size and visibility
+- Added nested dot indicators inside resize handles for better usability
+- Implemented smooth selection transitions with box-shadow
+- Improved text handling with proper word wrapping and overflow control
+
+### Technical Optimizations
+- Added proper event prevention to avoid browser conflicts
+- Improved pointer events handling during different canvas modes
+- Enhanced cleanup on component unmount
+- Fixed all remaining interaction edge cases for a seamless experience 
+
+# Final Miro-like Canvas Improvements
+
+## Perfect Positioning and Resizing
+
+### Custom Precision Dragging System
+- Implemented a custom drag handling system bypassing Framer Motion's built-in dragging
+- Items now follow the mouse cursor exactly with pixel-perfect positioning
+- Eliminated all grid snapping and position rounding completely
+- Items now stay exactly where they are placed when mouse is released
+
+### Corrected Resizing Behavior
+- Fixed resize operations to maintain proper corner anchoring
+- Completely rewrote resize logic to match Miro's precise behavior
+- Fixed item positioning during and after resize operations
+- Items now properly maintain their expected position during resize
+
+### Mathematical Precision Improvements
+- Implemented exact mathematical calculations for positioning
+- Adjusted for scale factor in all mouse movement calculations
+- Fixed coordinate system transformations between screen and canvas space
+- Added proper offset calculations for element dragging
+
+### Technical Optimizations
+- Implemented custom mouse event handlers for more precise control
+- Added proper cleanup mechanisms to prevent positioning artifacts
+- Fixed all remaining rounding and positioning issues
+- Added improved offset tracking for drag operations 
+
+## Database Error Handling and Reliability Improvements
+
+### Enhanced Error Diagnostics
+- Added detailed error handling in `getAllFilesByProjectId` with specific error messages
+- Created `/api/health` endpoint to diagnose database connection issues
+- Implemented database connection check helper function with detailed diagnostics
+- Added better error tracking to preserve original error context
+
+### Improved UI Error Handling
+- Enhanced Files page with graceful error handling and user-friendly error UI
+- Added ability to retry database operations after temporary failures
+- Implemented clear navigation options for users during error states
+
+### Better Project File Access
+- Created new `getProjectFiles` action with improved error handling
+- Enhanced error propagation to provide more context on failures 
+- Added proper error type checking and specialized error messages
+
+### Robustness Enhancements
+- Added null/undefined checks for critical parameters like projectId
+- Enhanced database query error handling to provide more context
+- Improved client-side error reporting with detailed error messages 
+
+## Large File Upload Improvements
+
+### Chunked Upload Implementation
+- Implemented chunked file upload system to handle files of any size
+- Created server-side chunk assembly and processing
+- Added client-side file chunking with progress tracking
+- Resolved "Body exceeded 1MB limit" errors by implementing proper chunking
+
+### Server Configuration
+- Updated Next.js configuration to increase body size limits
+- Added proper error handling for large file uploads
+- Implemented memory-efficient file processing
+
+### API Improvements
+- Created dedicated API route for handling large file uploads
+- Added proper type checking and validation for file uploads
+- Integrated auto-sorting logic with chunked uploads
+- Preserved file metadata (description, tags) during chunked uploads
+
+### UI Enhancements
+- Improved progress tracking for large file uploads
+- Added better error handling and user feedback
+- Maintained consistent user experience regardless of file size 
+
+## Wasabi Integration for File Storage
+
+### Overview
+Implemented a comprehensive file storage solution using Wasabi as the object storage provider, with the following key features:
+
+- **Optimized Database Usage**: Storing only essential metadata in the Neon PostgreSQL database while keeping actual file content in Wasabi
+- **Secure Pre-signed URLs**: Generating temporary access URLs for both uploads and downloads
+- **Chunked Upload Support**: Handling large files by breaking them into manageable chunks
+- **Auto-sorting System**: Intelligently categorizing files into appropriate folders based on file type and name
+- **Metadata Management**: Supporting file descriptions and tags for better organization
+
+### Implementation Details
+
+1. **Database Schema Optimization**
+   - Modified the files schema to store only metadata (path references, size, type)
+   - Eliminated storage of binary data in the database to reduce costs and improve performance
+
+2. **Wasabi Client Utilities**
+   - Created a centralized utility module for Wasabi operations
+   - Implemented helper functions for generating paths, upload URLs, and download URLs
+   - Standardized error handling and credential management
+
+3. **Upload Mechanisms**
+   - Direct upload via pre-signed URLs for smaller files
+   - Chunked upload with server-side assembly for larger files
+   - Progress tracking and comprehensive error handling
+
+4. **Download System**
+   - Secure pre-signed URLs with expiration times
+   - Permission verification before generating download links
+   - Proper content type handling for browser display
+
+5. **UI Components**
+   - File preview component with metadata display
+   - File list with grid and list views
+   - Download functionality with progress indication
+
+### Security Considerations
+- All file operations verify user authentication and project ownership
+- Pre-signed URLs expire after a short period (1 hour)
+- Structured storage paths prevent unauthorized access
+- Environment variables for all sensitive credentials
+
+### Future Improvements
+- Image thumbnails and previews for common file types
+- Version control for files
+- Batch operations for multiple files
+- Improved caching for frequently accessed files 
+
+# Implementation Log
+
+## Search and Filter Functionality Enhancements
+
+### Dark Theme UI Updates
+- Updated the search filter bar to use a dark theme with white text to match the rest of the UI
+- Applied consistent dark styling to all input fields, dropdowns, and buttons
+- Used neutral-800 background colors with neutral-700 borders for all form elements
+- Added proper hover states with neutral-700 backgrounds
+- Improved visibility with white text and gray-400 placeholders
+
+### Enhanced Search Capabilities
+- Expanded search functionality to include all file metadata:
+  - File name (including extension matching)
+  - File type (file/folder)
+  - File description
+  - Tags
+  - MIME type
+- Added intelligent parent folder inclusion when searching for files
+  - When searching for a file, the parent folders are automatically included in results
+  - This ensures users can navigate to found files through the folder hierarchy
+- Improved search placeholder text to better communicate search capabilities
+- Maintained all existing filtering options (type, MIME group, system folders)
+
+### Original UI Restoration with Search Integration
+- Updated the files page to maintain the original file tree UI
+- Integrated the search functionality above the file tree view
+- Maintained the original navigation and file management features
+- Fixed an issue with the `getFileDownloadUrl` function to properly pass project ID
+
+### Database Optimization
+- Added search functionality to the files system
+- Used a simpler in-memory filtering approach instead of complex SQL queries to avoid TypeScript issues
+- Created a `searchFiles` function in `actions/search-actions.ts` that:
+  - Authenticates users
+  - Verifies project access
+  - Retrieves all files for a project
+  - Applies filters in memory (query text, file type, MIME type, system folders)
+  - Sorts results (folders first, then by name)
+
+### UI Components
+- Created a `SearchFilterBar` component in `components/search-filter-bar.tsx`
+  - Implemented filters for text search, file type, and MIME type groups
+  - Added toggle for showing/hiding system folders
+  - Displays active filters with reset options
+- Created a client-side wrapper `SearchFilterBarWrapper` in `components/search-filter-bar-wrapper.tsx`
+  - Handles URL parameter updates for server-side filtering
+  - Manages navigation with filtered parameters
+
+### Integration
+- Added search filters UI at the top of the files page
+- Ensured compatibility with the existing file tree navigation
+- Preserved original button layout for folder creation and file upload
+
+## Next Steps
+- Implement edit and delete functionality for files
+- Add pagination for large file lists
+- Implement sorting options
+- Add file preview functionality
+

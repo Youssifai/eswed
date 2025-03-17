@@ -1,37 +1,52 @@
 import { NextResponse } from "next/server";
 import { checkDatabaseConnection } from "@/db/db";
+import { db } from "@/db/db";
+import { filesTable } from "@/db/schema/files-schema";
+import { sql } from "drizzle-orm";
 
 export async function GET() {
   try {
     // Check database connection
-    const dbStatus = await checkDatabaseConnection();
+    const connectionStatus = await checkDatabaseConnection();
     
-    if (!dbStatus.connected) {
-      return NextResponse.json(
-        { 
-          status: "error", 
-          database: { connected: false, error: dbStatus.error },
-          timestamp: new Date().toISOString()
-        }, 
-        { status: 500 }
-      );
+    // Additional debug info
+    let debugInfo = {};
+    
+    // If connected, try a simple query on files table
+    if (connectionStatus.connected) {
+      try {
+        // Try to count total files
+        const [{ count }] = await db.select({
+          count: sql<number>`count(*)`
+        }).from(filesTable);
+        
+        debugInfo = {
+          ...debugInfo,
+          filesCount: count,
+          filesTableAccessible: true
+        };
+      } catch (tableError) {
+        console.error("Error accessing files table:", tableError);
+        debugInfo = {
+          ...debugInfo,
+          filesTableAccessible: false,
+          filesTableError: tableError instanceof Error ? tableError.message : String(tableError)
+        };
+      }
     }
     
-    return NextResponse.json(
-      { 
-        status: "healthy", 
-        database: { connected: true },
-        timestamp: new Date().toISOString()
-      },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      database: connectionStatus,
+      debug: debugInfo
+    });
   } catch (error) {
     console.error("Health check error:", error);
-    
     return NextResponse.json(
-      { 
-        status: "error", 
-        error: error instanceof Error ? error.message : "Unknown error",
+      {
+        status: "error",
+        message: error instanceof Error ? error.message : "Unknown error during health check",
         timestamp: new Date().toISOString()
       },
       { status: 500 }

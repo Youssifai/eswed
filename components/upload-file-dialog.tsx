@@ -16,6 +16,8 @@ import { FileIcon, UploadIcon, X } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { fileToBase64, uploadLargeFileInChunks, MAX_BASE64_SIZE } from "@/lib/file-utils";
+import { uploadFileChunk } from "@/actions/chunked-upload-actions";
 
 interface UploadFileDialogProps {
   projectId: string;
@@ -24,15 +26,21 @@ interface UploadFileDialogProps {
   children?: React.ReactNode;
 }
 
+// Type for file with user-provided metadata
+type FileWithMeta = {
+  file: File;
+  description: string;
+  tags: string;
+};
+
 type UploadStatus = {
   file: File;
+  description: string;
+  tags: string;
   progress: number;
   status: "pending" | "uploading" | "completed" | "error";
   error?: string;
 };
-
-// Max file size for base64 encoding (5MB)
-const MAX_BASE64_SIZE = 5 * 1024 * 1024;
 
 export default function UploadFileDialog({
   projectId,
@@ -46,6 +54,12 @@ export default function UploadFileDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Track description and tags for each file
+  const [activeFileIndex, setActiveFileIndex] = useState<number | null>(null);
+  const [description, setDescription] = useState<string>("");
+  const [tags, setTags] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -54,6 +68,8 @@ export default function UploadFileDialog({
         ...prev,
         ...newFiles.map(file => ({
           file,
+          description: "",
+          tags: "",
           progress: 0,
           status: "pending" as const
         }))
@@ -69,6 +85,8 @@ export default function UploadFileDialog({
         ...prev,
         ...newFiles.map(file => ({
           file,
+          description: "",
+          tags: "",
           progress: 0,
           status: "pending" as const
         }))
@@ -103,44 +121,33 @@ export default function UploadFileDialog({
     });
   };
 
-  const uploadLargeFile = async (
-    file: File, 
-    index: number, 
-    updateProgress: (progress: number) => void
-  ): Promise<void> => {
-    try {
-      // 1. Get a pre-signed URL from the server
-      const response = await fetch(`/api/projects/${projectId}/upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fileName: file.name,
-          fileType: file.type,
-          parentId 
-        })
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to get upload URL");
-      }
-      
-      const { uploadUrl, fileId } = await response.json();
-      
-      // In a real app, we would upload to Wasabi/S3 here
-      // For now, we'll just simulate the upload
-      updateProgress(50);
-      
-      // Simulate the actual upload to Wasabi
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simulating successful upload
-      updateProgress(100);
-      
-      return;
-    } catch (error) {
-      console.error("Error uploading large file:", error);
-      throw error;
+  // Update metadata for a specific file
+  const updateFileMetadata = (index: number, description: string, tags: string) => {
+    setUploadStatuses(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        description,
+        tags
+      };
+      return updated;
+    });
+  };
+
+  // Set active file for metadata editing
+  const setActiveFile = (index: number) => {
+    setActiveFileIndex(index);
+    setDescription(uploadStatuses[index]?.description || "");
+    setTags(uploadStatuses[index]?.tags || "");
+  };
+
+  // Save metadata for active file
+  const saveMetadata = () => {
+    if (activeFileIndex !== null) {
+      updateFileMetadata(activeFileIndex, description, tags);
+      setActiveFileIndex(null);
+      setDescription("");
+      setTags("");
     }
   };
 
@@ -150,13 +157,26 @@ export default function UploadFileDialog({
       return;
     }
 
+    // Prevent duplicate uploads
+    if (isSubmitting || isUploading) {
+      console.log("Upload already in progress, ignoring duplicate request");
+      return;
+    }
+
     try {
+      setIsSubmitting(true);
       setIsUploading(true);
       setError(null);
       
       // Upload each file with progress tracking
       await Promise.all(
         uploadStatuses.map(async (status, index) => {
+          // Skip files that have already been uploaded or are currently uploading
+          if (status.status === "completed" || status.status === "uploading") {
+            console.log(`Skipping file ${status.file.name} as it's already ${status.status}`);
+            return;
+          }
+
           try {
             // Start uploading
             setUploadStatuses(prev => {
@@ -186,12 +206,14 @@ export default function UploadFileDialog({
               // Convert small files to base64
               const base64Data = await fileToBase64(status.file);
               
-              // Create a serializable file info object
+              // Create a serializable file info object with metadata
               const fileInfo = {
                 name: status.file.name,
                 type: status.file.type,
                 size: status.file.size,
-                base64Data: base64Data || undefined
+                base64Data: base64Data || undefined,
+                description: status.description,
+                tags: status.tags
               };
               
               // Simulate upload progress
@@ -211,8 +233,31 @@ export default function UploadFileDialog({
               // Actual file upload using our server action
               await uploadFile(projectId, fileInfo, parentId);
             } else {
-              // For larger files, use the pre-signed URL approach
-              await uploadLargeFile(status.file, index, updateProgress);
+              // For larger files, use the chunked upload approach
+              await uploadLargeFileInChunks(
+                status.file,
+                async (chunk, chunkIndex, totalChunks) => {
+                  // Send each chunk to the server
+                  const result = await uploadFileChunk(chunk, {
+                    projectId,
+                    fileName: status.file.name,
+                    fileType: status.file.type,
+                    fileSize: status.file.size,
+                    parentId,
+                    description: status.description,
+                    tags: status.tags,
+                    chunkIndex,
+                    totalChunks
+                  });
+                  
+                  if (!result.success) {
+                    throw new Error(result.error || "Failed to upload chunk");
+                  }
+                  
+                  return result;
+                },
+                updateProgress
+              );
             }
             
             // Mark as completed
@@ -250,135 +295,183 @@ export default function UploadFileDialog({
           onSuccess();
         }
       }, 1000);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Failed to upload files. Please try again.");
-      }
+    } catch (error) {
+      setError(
+        error instanceof Error 
+          ? error.message 
+          : "Failed to upload files"
+      );
     } finally {
       setIsUploading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  // Render the file list with metadata editing capabilities
+  const renderFileList = () => {
+    return (
+      <div className="space-y-4 max-h-80 overflow-y-auto">
+        {uploadStatuses.map((status, index) => (
+          <div 
+            key={index} 
+            className={`relative p-3 border rounded-md ${
+              activeFileIndex === index ? 'border-primary' : 'border-border'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <FileIcon className="h-8 w-8 text-primary" />
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-medium truncate">{status.file.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(status.file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+                
+                {/* Show metadata when not actively editing */}
+                {activeFileIndex !== index && (
+                  <div className="mt-2 text-xs">
+                    {status.description && (
+                      <p className="text-muted-foreground truncate">
+                        Description: {status.description}
+                      </p>
+                    )}
+                    {status.tags && (
+                      <p className="text-muted-foreground truncate">
+                        Tags: {status.tags}
+                      </p>
+                    )}
+                    {!status.description && !status.tags && status.status !== "uploading" && status.status !== "completed" && (
+                      <button 
+                        className="text-primary hover:underline" 
+                        onClick={() => setActiveFile(index)}
+                      >
+                        + Add description and tags
+                      </button>
+                    )}
+                  </div>
+                )}
+                
+                {/* Metadata editing form */}
+                {activeFileIndex === index && (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      className="w-full px-2 py-1 text-xs rounded border border-input"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Tags (comma separated)"
+                      className="w-full px-2 py-1 text-xs rounded border border-input"
+                      value={tags}
+                      onChange={(e) => setTags(e.target.value)}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => setActiveFileIndex(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={saveMetadata}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Progress bar */}
+                {(status.status === "uploading" || status.status === "completed") && (
+                  <div className="mt-2">
+                    <Progress value={status.progress} className="h-1" />
+                    <p className="text-xs text-right mt-1">
+                      {status.status === "completed" ? "Completed" : `${status.progress}%`}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Error message */}
+                {status.status === "error" && (
+                  <p className="text-xs text-destructive mt-1">{status.error}</p>
+                )}
+              </div>
+              
+              {/* Remove button (only when not uploading) */}
+              {status.status !== "uploading" && status.status !== "completed" && (
+                <button 
+                  onClick={() => removeFile(index)}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[550px] bg-neutral-900 text-white border-neutral-800">
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
-          <DialogDescription className="text-neutral-400">
-            Select files to upload to your project.
+          <DialogDescription>
+            Upload files to this project. Files will be automatically sorted into appropriate folders.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          {uploadStatuses.length === 0 ? (
-            <div
-              className="border-2 border-dashed border-neutral-700 rounded-lg p-8 text-center hover:border-neutral-500 transition-colors cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleFileChange}
-                multiple
-              />
-              <UploadIcon className="h-10 w-10 text-neutral-400 mx-auto mb-4" />
-              <p className="text-sm text-neutral-300 mb-1">
-                Drag and drop files here or click to browse
-              </p>
-              <p className="text-xs text-neutral-500">
-                Supported file types: Any file type is supported
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-              {uploadStatuses.map((status, index) => (
-                <div
-                  key={index}
-                  className="bg-neutral-800 rounded-md p-3 relative"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <FileIcon className="h-4 w-4 text-neutral-400" />
-                      <span className="text-sm truncate max-w-[350px]">{status.file.name}</span>
-                      <span className="text-xs text-neutral-500">
-                        {status.file.size > 1024 * 1024
-                          ? `${(status.file.size / (1024 * 1024)).toFixed(1)} MB`
-                          : `${(status.file.size / 1024).toFixed(1)} KB`}
-                      </span>
-                    </div>
-                    {status.status === "pending" && (
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="text-neutral-400 hover:text-white p-1"
-                        disabled={isUploading}
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col space-y-1">
-                    <Progress 
-                      value={status.progress} 
-                      className="h-1.5 bg-neutral-700"
-                      indicatorClassName={
-                        status.status === "error" 
-                          ? "bg-red-500" 
-                          : status.status === "completed"
-                          ? "bg-green-500"
-                          : "bg-blue-500"
-                      }
-                    />
-                    <div className="flex justify-between text-xs">
-                      <span>
-                        {status.status === "pending" && "Ready to upload"}
-                        {status.status === "uploading" && "Uploading..."}
-                        {status.status === "completed" && "Upload complete"}
-                        {status.status === "error" && "Upload failed"}
-                      </span>
-                      <span>{Math.round(status.progress)}%</span>
-                    </div>
-                    {status.error && (
-                      <p className="text-red-400 text-xs mt-1">{status.error}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              <Button
-                className="mt-4 w-full bg-neutral-800 hover:bg-neutral-700"
-                onClick={() => {
-                  fileInputRef.current?.click();
-                }}
-                disabled={isUploading}
-              >
-                Add More Files
-              </Button>
-            </div>
-          )}
-          
-          {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button 
-            variant="secondary"
-            onClick={() => setOpen(false)}
-            className="bg-neutral-800 hover:bg-neutral-700"
-            disabled={isUploading}
+        
+        {/* File selection area */}
+        {uploadStatuses.length === 0 ? (
+          <div 
+            className="border-2 border-dashed border-border rounded-md p-10 text-center"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <UploadIcon className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+            <p className="text-sm font-medium mb-1">
+              Drag and drop files here
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              or
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              Browse Files
+            </Button>
+          </div>
+        ) : (
+          renderFileList()
+        )}
+        
+        {error && (
+          <p className="text-sm text-destructive">{error}</p>
+        )}
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isUploading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleUpload}
-            disabled={isUploading || uploadStatuses.length === 0}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isUploading ? "Uploading..." : `Upload ${uploadStatuses.length} File${uploadStatuses.length !== 1 ? "s" : ""}`}
+          <Button onClick={handleUpload} disabled={isUploading || uploadStatuses.length === 0}>
+            {isUploading ? "Uploading..." : "Upload"}
           </Button>
         </DialogFooter>
       </DialogContent>

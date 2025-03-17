@@ -5,6 +5,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createProject as dbCreateProject } from "@/db/queries/projects-queries";
 import { createDefaultFolders } from "@/db/queries/files-queries";
+import { eq, desc } from "drizzle-orm";
+import { projectsTable } from "@/db/schema/projects-schema";
+import { db } from "@/db/db";
 
 // Interface for project creation data
 type CreateProjectData = {
@@ -50,5 +53,25 @@ export async function createProject(data: CreateProjectData) {
   } catch (error) {
     console.error("Error creating project:", error);
     throw new Error("Failed to create project");
+  }
+}
+
+export async function getAllProjects() {
+  const { userId } = auth();
+  
+  if (!userId) {
+    throw new Error("You must be logged in to view projects");
+  }
+  
+  try {
+    const projects = await db.query.projects.findMany({
+      where: eq(projectsTable.ownerId, userId),
+      orderBy: [desc(projectsTable.updatedAt)]
+    });
+    
+    return projects;
+  } catch (error) {
+    console.error("Error fetching projects:", error);
+    throw new Error("Failed to load projects");
   }
 } 
