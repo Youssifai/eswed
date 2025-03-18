@@ -55,7 +55,7 @@ export default async function FilesPage({ params, searchParams }: FilesPageProps
         <div className="flex flex-col items-center justify-center h-full">
           <AlertCircle className="h-10 w-10 text-red-500 mb-4" />
           <h2 className="text-2xl font-bold mb-2">Project Not Found</h2>
-          <p className="text-gray-600">The project you're looking for doesn't exist or you don't have access to it.</p>
+          <p className="text-gray-600">The project you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.</p>
         </div>
       );
     }

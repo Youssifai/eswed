@@ -165,9 +165,9 @@ export default function CommandPopup({
     }
     setSelectedIndex(0);
     setShowSubCommands(null);
-  }, [searchQuery]);
+  }, [searchQuery, allCommands]);
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation and outside clicks
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showSubCommands) {
@@ -227,32 +227,33 @@ export default function CommandPopup({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [filteredCommands, selectedIndex, onClose, showSubCommands, searchQuery]);
-
-  // Close popup when clicking outside
-  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
+    // Set up keydown handler
+    document.addEventListener('keydown', handleKeyDown);
+    // Set up click outside handler
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [filteredCommands, selectedIndex, onClose, showSubCommands, searchQuery, allCommands]);
 
   // If no commands match, show a message
   if (filteredCommands.length === 0) {
     return (
-      <div 
+      <div
         ref={popupRef}
         className="absolute z-50 bg-[#121212] rounded-md shadow-lg border border-[#4A4A4A] w-64 overflow-hidden"
         style={{ top: position.top, left: position.left }}
       >
         <div className="p-2 text-sm text-gray-400">
-          No commands match "{searchQuery.replace('/', '')}"
+          No commands match &quot;{searchQuery.replace('/', '')}&quot;
         </div>
       </div>
     );

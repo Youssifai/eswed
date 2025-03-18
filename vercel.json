@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "app/api/**/*": {
+      "runtime": "nodejs18.x",
+      "memory": 1024,
+      "maxDuration": 300
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/projects/(?<projectId>[^/]+)/download-folder",
+      "dest": "/api/projects/$projectId/download-folder",
+      "continue": true
+    }
+  ]
+} 

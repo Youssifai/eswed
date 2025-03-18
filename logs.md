@@ -1032,6 +1032,14 @@ Fixed the file download functionality from Wasabi storage:
   - Creating a NextJS-compatible postgres adapter
 - Fixed base64Data type issues in file upload dialog
 
+### 5. Deployment Fixes for Vercel
+- Fixed ESLint errors related to unescaped entities in text
+- Added proper runtime configuration for Node.js API routes
+- Created vercel.json with optimized function configuration
+- Updated middleware.ts to explicitly use Node.js runtime
+- Fixed dependency array warnings in React hooks
+- Fixed anonymous default export in postgres adapter
+
 ### Next Steps
 - Continue implementing Wasabi storage integration for file uploads
 - Enhance error handling for file uploads

@@ -454,7 +454,7 @@ USE_PLACEHOLDER_DOWNLOADS=true  # Only in development`}
                     and that your bucket policy allows the intended operations.
                   </li>
                   <li>
-                    <strong>File migration issues</strong>: If files aren't migrating correctly,
+                    <strong>File migration issues</strong>: If files aren&apos;t migrating correctly,
                     try updating the file records in the database first, then uploading the actual content.
                   </li>
                 </ul>

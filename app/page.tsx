@@ -46,7 +46,7 @@ export default async function HomePage() {
         
         {projects.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center mt-10">
-            <p className="text-neutral-300 mb-4">You don't have any projects yet.</p>
+            <p className="text-neutral-300 mb-4">You don&apos;t have any projects yet.</p>
             <p className="text-neutral-400 text-sm">Create a project to get started.</p>
           </div>
         )}

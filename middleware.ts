@@ -6,24 +6,29 @@ import { NextRequest } from "next/server";
 // See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your middleware
 export default authMiddleware({
   publicRoutes: [
-    "/", 
-    "/api(.*)", 
-    "/sign-in(.*)", 
+    "/",
+    "/sign-in(.*)",
     "/sign-up(.*)",
-    "/_next(.*)",
-    "/favicon.ico",
-    "/public(.*)",
+    "/api/health"
   ],
-  afterAuth(auth, req: NextRequest) {
-    // If the user is signed in and trying to access a public route
-    if (auth.userId && req.nextUrl.pathname === "/sign-in") {
-      const homeUrl = new URL("/", req.url);
+  afterAuth(auth, req, evt) {
+    // Handle users who aren't authenticated
+    if (!auth.userId && !auth.isPublicRoute) {
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('redirect_url', req.url);
+      return Response.redirect(signInUrl);
+    }
+
+    // If the user is logged in and trying to access sign-in page, redirect them to home
+    if (auth.userId && req.nextUrl.pathname.startsWith('/sign-in')) {
+      const homeUrl = new URL('/', req.url);
       return Response.redirect(homeUrl);
     }
-  },
+  }
 });
 
 // Match all routes except public assets, api routes, and static files
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  runtime: "nodejs" // Explicitly use Node.js runtime instead of Edge
 };
