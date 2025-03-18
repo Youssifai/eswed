@@ -243,49 +243,53 @@ export function FileUpload({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-[#121212] text-white border-neutral-800">
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="file">Select File</Label>
+            <Label htmlFor="file" className="text-white">Select File</Label>
             <Input
               id="file"
               type="file"
               ref={fileInputRef}
               onChange={handleFileChange}
               disabled={uploading}
+              className="bg-[#252525] border-neutral-700 text-white file:bg-[#333333] file:text-white file:border-0"
             />
           </div>
           {file && (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="fileName">File Name</Label>
+                <Label htmlFor="fileName" className="text-white">File Name</Label>
                 <Input
                   id="fileName"
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
                   disabled={uploading}
+                  className="bg-[#252525] border-neutral-700 text-white"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="description">Description (optional)</Label>
+                <Label htmlFor="description" className="text-white">Description (optional)</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={uploading}
+                  className="bg-[#252525] border-neutral-700 text-white"
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="tags">Tags (comma separated, optional)</Label>
+                <Label htmlFor="tags" className="text-white">Tags (comma separated, optional)</Label>
                 <Input
                   id="tags"
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                   placeholder="design, logo, draft"
                   disabled={uploading}
+                  className="bg-[#252525] border-neutral-700 text-white placeholder:text-neutral-400"
                 />
               </div>
             </>
@@ -293,8 +297,8 @@ export function FileUpload({
           {error && <p className="text-sm text-red-500">{error}</p>}
           {uploading && (
             <div className="space-y-2">
-              <Progress value={progress} />
-              <p className="text-sm text-gray-500 text-center">{progress}%</p>
+              <Progress value={progress} className="bg-neutral-700" />
+              <p className="text-sm text-neutral-400 text-center">{progress}%</p>
             </div>
           )}
         </div>
@@ -307,6 +311,7 @@ export function FileUpload({
               onOpenChange(false);
             }}
             disabled={uploading}
+            className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
           >
             Cancel
           </Button>
@@ -314,6 +319,7 @@ export function FileUpload({
             type="button"
             onClick={handleUpload}
             disabled={!file || uploading}
+            className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
           >
             {uploading ? "Uploading..." : "Upload"}
           </Button>

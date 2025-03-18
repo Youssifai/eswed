@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { getProfileByUserId } from "@/db/queries/profiles-queries";
 import { getProjectsByOwnerId } from "@/db/queries/projects-queries";
+import { SelectProject } from "@/db/schema/projects-schema";
 import ProjectGallery from "@/components/project-gallery";
 import NavigationDock from "@/components/dock";
 
@@ -18,7 +19,13 @@ export default async function HomePage() {
     return redirect("/signup");
   }
 
-  const projects = await getProjectsByOwnerId(userId);
+  // Get projects for the user, or use empty array if there's an error
+  let projects: SelectProject[] = [];
+  try {
+    projects = await getProjectsByOwnerId(userId);
+  } catch (error) {
+    console.error("Failed to fetch projects:", error);
+  }
 
   return (
     <div className="min-h-screen bg-[#121212] text-white flex flex-col">
@@ -31,7 +38,18 @@ export default async function HomePage() {
           <h1 className="text-4xl font-semibold">Home OS</h1>
         </div>
 
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold">Your Projects</h2>
+        </div>
+
         <ProjectGallery projects={projects} />
+        
+        {projects.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center mt-10">
+            <p className="text-neutral-300 mb-4">You don't have any projects yet.</p>
+            <p className="text-neutral-400 text-sm">Create a project to get started.</p>
+          </div>
+        )}
       </main>
 
       {/* Dock navigation */}

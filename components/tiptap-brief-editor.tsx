@@ -25,6 +25,9 @@ import {
   AlignRight,
 } from "lucide-react";
 import { SlashCommandMenu } from "./slash-command-menu";
+import Placeholder from "@tiptap/extension-placeholder";
+import CharacterCount from "@tiptap/extension-character-count";
+import { Extension } from "@tiptap/core";
 
 type BriefEditorProps = {
   projectId: string;
@@ -34,85 +37,134 @@ type BriefEditorProps = {
 export default function TipTapBriefEditor({ projectId, initialContent }: BriefEditorProps) {
   const [content, setContent] = useState(initialContent || "<p>Add your brief details here...</p>");
   const [debouncedContent] = useDebounce(content, 1000);
-  const [showSlashMenu, setShowSlashMenu] = useState(false);
-  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
+  const [isSlashCommandOpen, setIsSlashCommandOpen] = useState(false);
+  const [slashCommandRange, setSlashCommandRange] = useState<{ from: number; to: number } | null>(null);
+  const [slashCommandQuery, setSlashCommandQuery] = useState('');
   const editorRef = useRef<HTMLDivElement>(null);
   
   // Editor setup with extensions
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: false, // We'll add our own heading extension
-        bulletList: {
-          HTMLAttributes: {
-            class: 'list-disc ml-4',
-          },
-        },
-        orderedList: {
-          HTMLAttributes: {
-            class: 'list-decimal ml-4',
-          },
-        },
+        heading: false, // We'll use our own heading extension
+        bulletList: {}, // Ensure bullet list is enabled
+        orderedList: {}, // Ensure ordered list is enabled
       }),
       Underline,
       Heading.configure({
         levels: [1, 2, 3],
-        HTMLAttributes: {
-          class: 'font-bold',
-          1: { class: 'text-3xl my-4' },
-          2: { class: 'text-2xl my-3' },
-          3: { class: 'text-xl my-2' },
-        },
       }),
-      TaskList.configure({
-        HTMLAttributes: {
-          class: 'task-list',
-        },
-      }),
+      TaskList,
       TaskItem.configure({
         nested: true,
-        HTMLAttributes: {
-          class: 'task-item',
-        },
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
-        alignments: ['left', 'center', 'right'],
-        defaultAlignment: 'left',
+      }),
+      Placeholder.configure({
+        placeholder: 'What are you working on?',
+      }),
+      CharacterCount.configure({
+        limit: 30000,
+      }),
+      Extension.create({
+        name: 'slashCommand',
+        addKeyboardShortcuts() {
+          return {
+            Escape: () => {
+              if (isSlashCommandOpen) {
+                setIsSlashCommandOpen(false);
+                return true;
+              }
+              return false;
+            },
+          };
+        },
       }),
     ],
-    content: content,
-    onUpdate: ({ editor }) => {
-      setContent(editor.getHTML());
-    },
-    onSelectionUpdate: ({ editor }) => {
-      // Handle slash commands
-      const { from } = editor.state.selection;
-      const currentPosition = from;
-      const textBefore = editor.state.doc.textBetween(
-        Math.max(0, currentPosition - 10),
-        currentPosition
-      );
-      
-      // Check if the last character typed is a slash
-      if (textBefore.endsWith('/')) {
-        // Get position for slash menu
-        const coords = editor.view.coordsAtPos(from);
-        setSlashMenuPosition({
-          top: coords.bottom + window.scrollY,
-          left: coords.left + window.scrollX,
-        });
-        setShowSlashMenu(true);
-      } else if (showSlashMenu && !textBefore.includes('/')) {
-        // Hide menu if user continues typing something else
-        setShowSlashMenu(false);
-      }
-    },
     editorProps: {
       attributes: {
-        class: 'outline-none w-full h-full p-4 prose prose-invert max-w-none',
+        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus:outline-none p-4',
+      },
+      handleDOMEvents: {
+        keydown: (view, event) => {
+          // Handle Escape key to close the slash command menu
+          if (event.key === 'Escape' && isSlashCommandOpen) {
+            setIsSlashCommandOpen(false);
+            return true;
+          }
+          
+          // Check if typing "/" at the start of a line or after a space
+          if (event.key === '/' && editor) {
+            const { selection } = editor.state;
+            const { empty, from } = selection;
+            
+            if (empty) {
+              const textBefore = editor.state.doc.textBetween(
+                Math.max(0, from - 1),
+                from,
+                '\n'
+              );
+              
+              // Only activate if at line start or after a space
+              if (from === 1 || textBefore === ' ' || textBefore === '\n') {
+                setSlashCommandRange({ from, to: from });
+                setSlashCommandQuery('');
+                setIsSlashCommandOpen(true);
+                return true;
+              }
+            }
+          }
+          
+          // Track the query for filtering commands
+          if (isSlashCommandOpen && editor && slashCommandRange) {
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter') {
+              // Let the slash command menu handle these keys
+              event.preventDefault();
+              return true;
+            }
+            
+            // Update the range and query as the user types
+            setTimeout(() => {
+              if (!editor) return;
+              
+              const { selection } = editor.state;
+              const currentTextRange = { from: slashCommandRange.from, to: selection.from };
+              
+              // Get the text between the slash and the cursor
+              let queryText = editor.state.doc.textBetween(
+                currentTextRange.from,
+                currentTextRange.to,
+                '\n'
+              );
+              
+              // Remove the initial slash if present
+              if (queryText.startsWith('/')) {
+                queryText = queryText.substring(1);
+              }
+              
+              setSlashCommandQuery(queryText);
+              setSlashCommandRange(currentTextRange);
+              
+              // Close the menu if the range becomes invalid or if text has a space
+              if (currentTextRange.from >= currentTextRange.to || queryText.includes(' ')) {
+                setIsSlashCommandOpen(false);
+              }
+            }, 0);
+          }
+          
+          return false;
+        },
       },
     },
+    onUpdate: ({ editor }) => {
+      if (editor) {
+        const html = editor.getHTML();
+        setContent(html);
+      }
+    },
+    content: content,
+    editable: true,
   });
   
   // Save content when it changes
@@ -135,39 +187,57 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
   const handleSlashCommand = useCallback((action: () => void) => {
     if (editor) {
       action();
-      setShowSlashMenu(false);
+      setIsSlashCommandOpen(false);
     }
   }, [editor]);
+
+  // Update slash menu position when it changes
+  useEffect(() => {
+    if (!isSlashCommandOpen || !editor) return;
+    
+    const { view } = editor;
+    const { selection } = view.state;
+    
+    if (!selection) return;
+    
+    // Get the coordinates at cursor position
+    const coords = view.coordsAtPos(selection.head);
+    
+    setSlashCommandRange({
+      from: selection.from,
+      to: selection.from,
+    });
+  }, [isSlashCommandOpen, editor]);
 
   // Handle keyboard events for slash menu navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!showSlashMenu) return;
+      if (!isSlashCommandOpen) return;
       
       if (e.key === 'Escape') {
-        setShowSlashMenu(false);
+        setIsSlashCommandOpen(false);
         e.preventDefault();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showSlashMenu]);
+  }, [isSlashCommandOpen]);
   
   // Close slash menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (showSlashMenu && editorRef.current && !editorRef.current.contains(e.target as Node)) {
-        setShowSlashMenu(false);
+      if (isSlashCommandOpen && editorRef.current && !editorRef.current.contains(e.target as Node)) {
+        setIsSlashCommandOpen(false);
       }
     };
     
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSlashMenu]);
+  }, [isSlashCommandOpen]);
   
   return (
-    <div className="w-full h-full flex flex-col" ref={editorRef}>
+    <div className="w-full h-full flex flex-col bg-[#121212] rounded-md" ref={editorRef}>
       <div className="flex-1 overflow-auto">
         {/* The main editor */}
         <EditorContent 
@@ -180,25 +250,25 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
           <BubbleMenu 
             editor={editor} 
             tippyOptions={{ duration: 100 }}
-            className="bg-background border rounded-md shadow-md p-1 flex items-center gap-1"
+            className="bg-[#252525] border border-neutral-800 rounded-md shadow-md p-1 flex items-center gap-1 max-w-[95vw]"
           >
             <button
               onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('bold') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('bold') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Bold"
             >
               <Bold className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('italic') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('italic') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Italic"
             >
               <Italic className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('underline') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('underline') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Underline"
             >
               <UnderlineIcon className="h-4 w-4" />
@@ -206,21 +276,21 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
             <span className="w-px h-5 bg-neutral-700 mx-1" />
             <button
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('heading', { level: 1 }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('heading', { level: 1 }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Heading 1"
             >
               <Heading1 className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('heading', { level: 2 }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('heading', { level: 2 }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Heading 2"
             >
               <Heading2 className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('heading', { level: 3 }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('heading', { level: 3 }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Heading 3"
             >
               <Heading3 className="h-4 w-4" />
@@ -228,21 +298,21 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
             <span className="w-px h-5 bg-neutral-700 mx-1" />
             <button
               onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('bulletList') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('bulletList') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Bullet List"
             >
               <List className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('orderedList') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('orderedList') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Numbered List"
             >
               <ListOrdered className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().toggleTaskList().run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive('taskList') ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive('taskList') ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Task List"
             >
               <CheckSquare className="h-4 w-4" />
@@ -250,21 +320,21 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
             <span className="w-px h-5 bg-neutral-700 mx-1" />
             <button
               onClick={() => editor.chain().focus().setTextAlign('left').run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive({ textAlign: 'left' }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive({ textAlign: 'left' }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Align Left"
             >
               <AlignLeft className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().setTextAlign('center').run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive({ textAlign: 'center' }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive({ textAlign: 'center' }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Align Center"
             >
               <AlignCenter className="h-4 w-4" />
             </button>
             <button
               onClick={() => editor.chain().focus().setTextAlign('right').run()}
-              className={`p-1 rounded hover:bg-neutral-800 ${editor.isActive({ textAlign: 'right' }) ? 'bg-neutral-800 text-white' : 'text-neutral-300'}`}
+              className={`p-1 rounded hover:bg-[#1C1C1C] ${editor.isActive({ textAlign: 'right' }) ? 'bg-[#1C1C1C] text-white' : 'text-neutral-300'}`}
               title="Align Right"
             >
               <AlignRight className="h-4 w-4" />
@@ -273,17 +343,17 @@ export default function TipTapBriefEditor({ projectId, initialContent }: BriefEd
         )}
         
         {/* Slash command menu */}
-        {editor && showSlashMenu && (
-          <div 
-            style={{ 
-              position: 'absolute', 
-              top: slashMenuPosition.top + 'px', 
-              left: slashMenuPosition.left + 'px',
-              zIndex: 50 
-            }}
-            className="bg-background border border-neutral-800 rounded-md shadow-lg overflow-hidden"
-          >
-            <SlashCommandMenu editor={editor} onCommand={handleSlashCommand} />
+        {editor && isSlashCommandOpen && slashCommandRange && (
+          <div className="absolute z-50" style={{ 
+            top: `${editor.view.coordsAtPos(slashCommandRange.from).top + 20}px`,
+            left: `${editor.view.coordsAtPos(slashCommandRange.from).left}px`
+          }}>
+            <SlashCommandMenu
+              editor={editor}
+              query={slashCommandQuery}
+              range={slashCommandRange}
+              setMenuOpen={setIsSlashCommandOpen}
+            />
           </div>
         )}
       </div>

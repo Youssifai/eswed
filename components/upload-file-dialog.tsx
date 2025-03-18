@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,9 @@ interface UploadFileDialogProps {
   parentId?: string;
   onSuccess?: () => void;
   children?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  initialFiles?: File[];
 }
 
 // Type for file with user-provided metadata
@@ -47,9 +50,13 @@ export default function UploadFileDialog({
   parentId,
   onSuccess,
   children,
+  open: controlledOpen,
+  onOpenChange,
+  initialFiles = [],
 }: UploadFileDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const [uploadStatuses, setUploadStatuses] = useState<UploadStatus[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +67,45 @@ export default function UploadFileDialog({
   const [description, setDescription] = useState<string>("");
   const [tags, setTags] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle dialog open state changes
+  const handleOpenChange = (newOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newOpen);
+    } else {
+      setInternalOpen(newOpen);
+    }
+    
+    // Reset state when dialog is opened
+    if (newOpen) {
+      setError(null);
+      // Don't reset upload statuses if we're reopening with previous files
+    } else {
+      // Reset state when dialog is closed if we're not in the middle of uploading
+      if (!isUploading) {
+        setUploadStatuses([]);
+        setActiveFileIndex(null);
+        setDescription("");
+        setTags("");
+      }
+    }
+  };
+
+  // Process initial files when they change
+  useEffect(() => {
+    if (initialFiles && initialFiles.length > 0) {
+      // Convert initial files to upload statuses
+      setUploadStatuses(
+        initialFiles.map(file => ({
+          file,
+          description: "",
+          tags: "",
+          progress: 0,
+          status: "pending" as const
+        }))
+      );
+    }
+  }, [initialFiles]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -103,11 +149,11 @@ export default function UploadFileDialog({
   };
 
   // Convert file to base64 for small files
-  const fileToBase64 = (file: File): Promise<string | null> => {
+  const fileToBase64 = (file: File): Promise<string | undefined> => {
     return new Promise((resolve, reject) => {
       // Only convert small files to base64
       if (file.size > MAX_BASE64_SIZE) {
-        resolve(null);
+        resolve(undefined);
         return;
       }
 
@@ -116,7 +162,7 @@ export default function UploadFileDialog({
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = error => {
         console.error("Error reading file:", error);
-        reject(null);
+        reject(undefined);
       };
     });
   };
@@ -211,7 +257,7 @@ export default function UploadFileDialog({
                 name: status.file.name,
                 type: status.file.type,
                 size: status.file.size,
-                base64Data: base64Data || undefined,
+                base64Data,
                 description: status.description,
                 tags: status.tags
               };
@@ -270,30 +316,18 @@ export default function UploadFileDialog({
               };
               return updated;
             });
-          } catch (err) {
-            setUploadStatuses(prev => {
-              const updated = [...prev];
-              updated[index] = {
-                ...updated[index],
-                status: "error",
-                error: err instanceof Error ? err.message : "Upload failed"
-              };
-              return updated;
-            });
-            throw err;
+          } catch (err: any) {
+            console.error("Error uploading files:", err);
+            setError(err.message || "Failed to upload files");
+            setIsUploading(false);
+            setIsSubmitting(false);
           }
         })
       );
       
       // Wait a moment to show completed progress, then close dialog
       setTimeout(() => {
-        setOpen(false);
-        setUploadStatuses([]);
-        router.refresh();
-        toast.success("Files uploaded successfully");
-        if (onSuccess) {
-          onSuccess();
-        }
+        completeUpload();
       }, 1000);
     } catch (error) {
       setError(
@@ -416,11 +450,29 @@ export default function UploadFileDialog({
     );
   };
 
+  // Complete the upload operation
+  const completeUpload = () => {
+    setIsUploading(false);
+    setIsSubmitting(false);
+    handleOpenChange(false);
+    router.refresh();
+      
+    // Call onSuccess if provided
+    if (onSuccess) {
+      onSuccess();
+    }
+    
+    // Reset all states
+    setUploadStatuses([]);
+    setActiveFileIndex(null);
+    setDescription("");
+    setTags("");
+    setError(null);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Upload Files</DialogTitle>
@@ -466,8 +518,8 @@ export default function UploadFileDialog({
           <p className="text-sm text-destructive">{error}</p>
         )}
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isUploading}>
+        <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isUploading}>
             Cancel
           </Button>
           <Button onClick={handleUpload} disabled={isUploading || uploadStatuses.length === 0}>

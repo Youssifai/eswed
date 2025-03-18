@@ -1,22 +1,29 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { authMiddleware } from "@clerk/nextjs";
+import { NextRequest } from "next/server";
 
-const isProtectedRoute = createRouteMatcher(["/notes(.*)"]);
-
-export default clerkMiddleware(async (auth, req) => {
-  const { userId, redirectToSignIn } = auth();
-
-  // If the user isn't signed in and the route is private, redirect to sign-in
-  if (!userId && isProtectedRoute(req)) {
-    return redirectToSignIn({ returnBackUrl: "/login" });
-  }
-
-  // If the user is logged in and the route is protected, let them view.
-  if (userId && isProtectedRoute(req)) {
-    return NextResponse.next();
-  }
+// This example protects all routes including api/trpc routes
+// Please edit this to allow other routes to be public as needed.
+// See https://clerk.com/docs/references/nextjs/auth-middleware for more information about configuring your middleware
+export default authMiddleware({
+  publicRoutes: [
+    "/", 
+    "/api(.*)", 
+    "/sign-in(.*)", 
+    "/sign-up(.*)",
+    "/_next(.*)",
+    "/favicon.ico",
+    "/public(.*)",
+  ],
+  afterAuth(auth, req: NextRequest) {
+    // If the user is signed in and trying to access a public route
+    if (auth.userId && req.nextUrl.pathname === "/sign-in") {
+      const homeUrl = new URL("/", req.url);
+      return Response.redirect(homeUrl);
+    }
+  },
 });
 
+// Match all routes except public assets, api routes, and static files
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"]
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
 };

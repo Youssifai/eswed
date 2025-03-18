@@ -6,9 +6,6 @@ import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-/**
- * Updates the brief content for a project
- */
 export async function updateBriefContent(projectId: string, content: string) {
   try {
     const { userId } = auth();

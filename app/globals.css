@@ -140,3 +140,70 @@
     }
   }
 }
+
+/* TipTap Editor Custom Styles */
+.ProseMirror {
+  /* Task List Styles - Better UI with text beside checkboxes */
+  ul[data-type="taskList"] {
+    list-style: none;
+    padding: 0;
+  }
+  
+  ul[data-type="taskList"] li {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 0.5em;
+  }
+  
+  ul[data-type="taskList"] li input[type="checkbox"] {
+    margin-right: 0.5em;
+    margin-top: 0.25em;
+    flex-shrink: 0;
+  }
+  
+  ul[data-type="taskList"] li p {
+    margin: 0;
+    display: inline;
+  }
+  
+  /* Heading Styles */
+  h1 {
+    font-size: 2em;
+    margin-top: 0.5em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+  }
+  
+  h2 {
+    font-size: 1.5em;
+    margin-top: 0.5em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+  }
+  
+  h3 {
+    font-size: 1.17em;
+    margin-top: 0.5em;
+    margin-bottom: 0.3em;
+    font-weight: bold;
+  }
+}
+
+/* Specific heading styles for TipTap */
+.ProseMirror h1 {
+  font-size: 2em;
+  margin-top: 0.75em;
+  margin-bottom: 0.5em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  margin-top: 0.6em;
+  margin-bottom: 0.4em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.2em;
+  margin-top: 0.5em;
+  margin-bottom: 0.3em;
+}

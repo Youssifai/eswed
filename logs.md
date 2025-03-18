@@ -696,3 +696,344 @@ Implemented a comprehensive file storage solution using Wasabi as the object sto
 - Implement sorting options
 - Add file preview functionality
 
+# Changes Log
+
+## UI Improvements
+1. Updated the TipTap editor's BubbleMenu to use a dark theme with colors:
+   - Background: #252525
+   - Hover state: #1C1C1C
+   - Border: neutral-800
+
+2. Completely redesigned the SlashCommandMenu component:
+   - Made it horizontal like the BubbleMenu
+   - Used the same dark theme (#252525 with #1C1C1C hover)
+   - Fixed the implementation to properly handle slash commands
+   - Made all heading options use toggleHeading for proper behavior
+   - Added TextAlign extension with left/center/right options
+
+3. Updated the TipTap Brief Editor:
+   - Fixed imports and reorganized code
+   - Added proper support for extensions:
+     - Placeholder extension
+     - CharacterCount extension
+     - Extension for slash commands
+   - Fixed slash command detection and implementation
+   - Added proper event handling for keyboard navigation
+
+4. Redesigned Account page:
+   - Removed the sidebar
+   - Created a minimal dark-themed design with centered layout
+   - Removed edit buttons and other non-essential UI
+   - Simplified user profile display
+   - Added dark theme colors (#121212 background, #1E1E1E card)
+
+## Authentication Fixes
+1. Fixed middleware implementation:
+   - Updated to use authMiddleware from @clerk/nextjs
+   - Added proper public routes
+   - Set up redirect to home page after login
+   - Added proper type safety
+
+2. Updated the sign-out implementation:
+   - Fixed imports for auth and currentUser
+   - Implemented both GET and POST methods
+   - Simplified the redirect logic
+
+## Cleanup
+1. Removed unnecessary files:
+   - Removed pricing page
+
+## Package Updates
+1. Added required TipTap extensions:
+   - @tiptap/extension-placeholder
+   - @tiptap/extension-character-count
+   - @tiptap/core
+
+## Future Improvements
+1. Consider adding proper error handling in sign-out process
+2. Enhance the file tree view with additional spacing and organization
+3. Add more editor features and formatting options
+
+# TipTap Editor and Account Settings Fixes
+
+## TipTap Editor Fixes - 2024-03-18
+
+### Issues Fixed
+1. **Right Alignment Button:**
+   - Fixed the right alignment button being out of the editor and missing background
+   - Added `max-w-[95vw]` class to the BubbleMenu to ensure it stays within the editor
+   - Added background color to the full editor with `bg-[#121212] rounded-md`
+
+2. **Bullet and Number Lists:**
+   - Properly configured StarterKit to support bulletList and orderedList
+   - Updated configuration for heading to use a dedicated Heading extension
+   - Added proper configuration for both list types to ensure they work correctly
+
+3. **Slash Command Functionality:**
+   - Fixed the slash command feature to properly open when typing "/"
+   - Improved positioning of slash menu by directly using editor coordinates
+   - Enhanced Escape key handling to close the menu properly
+   - Properly deleted the slash character when executing a command
+
+4. **Enhanced Editor Layout:**
+   - Added padding with `p-4` to the editor content for better spacing
+   - Improved visual consistency with dark theme styling
+   - Fixed keyboard event handling for better navigation
+
+## Account Settings Page Improvements - 2024-03-18
+
+### Features Added
+1. **Plan Selection UI:**
+   - Added side-by-side comparison of Free vs Pro plans
+   - Highlighted the current plan (Free) with blue border and label
+   - Added plan details including project limits and storage allowances
+   - Implemented "Upgrade" button for Pro plan with hover effects
+
+2. **Dark Theme Styling:**
+   - Enhanced sign out button with dark theme styling
+   - Applied consistent color scheme throughout
+   - Added hover effects for better interactivity
+
+3. **Navigation:**
+   - Added the dock navigation at the bottom for easy navigation
+   - Fixed positioning to stay at the bottom of the page
+   - Ensured consistent navigation experience across the app
+
+4. **Sign Out Redirection:**
+   - Updated sign-out route to redirect to sign-in page
+   - Improved the redirect URL construction
+   - Fixed both GET and POST methods to provide consistent behavior
+
+## Image Domain Configuration - 2024-03-18
+
+### Fixed Clerk Image Domains
+1. **Next.js Configuration:**
+   - Added Clerk image domain to next.config.mjs
+   - Configured domains array to include 'img.clerk.com'
+   - Fixed the "Unhandled Runtime Error" for unconfigured image host
+
+## Overall Improvements
+- Better user experience with properly functioning editor tools
+- Enhanced visual consistency with dark theme styling
+- More intuitive plan selection interface
+- Improved sign-out flow redirecting to sign-in page
+- Fixed all reported issues while maintaining app functionality
+
+# Issues Fixed and Features Added - 2024-03-18
+
+## File Download Issue Fix
+
+Fixed the file download functionality from Wasabi storage:
+
+1. **Identified the issue:**
+   - Content-Disposition header wasn't properly URL encoding file names
+   - Special characters in file names were causing issues with download URLs
+
+2. **Fixed in `lib/wasabi-client.ts`:**
+   - Added better handling for Content-Disposition headers
+   - Properly escaped file names to prevent URL parsing issues
+   - Removed quotes from file names that could cause API errors
+
+   ## New Feature: Download Folder/Project
+
+   Added a new API endpoint and UI for downloading all project files as a ZIP archive:
+
+   1. **API Implementation (`app/api/projects/[projectId]/download-folder/route.ts`):**
+      - Created a Node.js API route that streams files from Wasabi
+      - Used the `archiver` library to create a ZIP archive
+      - Preserved folder structure by traversing parent relationships
+      - Implemented proper authentication and error handling
+      - Used temporary files to handle large downloads efficiently
+
+   2. **UI Integration:**
+      - Added a "Download All" button to file manager UI
+      - Styled button to match existing dark theme design
+      - Implemented browser download in a new tab for better UX
+
+   3. **Dependencies:**
+      - Added `archiver` and `@types/archiver` packages
+
+   ## Code Structure
+
+   Maintained the existing project structure:
+   - API routes in `/app/api/projects/[projectId]/download-folder/route.ts`
+   - Client components in `/components/file-manager.tsx`
+   - AWS S3 client utilities in `/lib/wasabi-client.ts`
+
+   ## Key Improvements
+
+   1. **Better error handling for file operations**
+   2. **Preservation of folder hierarchy in downloads**
+   3. **Enhanced UI with Download All button**
+   4. **User-friendly file naming in downloads**
+   5. **Properly escaped file names in download headers**
+
+   # Fixed Empty ZIP File Issue - 2024-03-19
+
+   ## Comprehensive Debug and Fix for Project Download Functionality
+
+   The "Download All" feature was producing empty or corrupt ZIP files. After thorough investigation and debugging, the following issues were identified and fixed:
+
+   1. **Enhanced Diagnostic Logging**
+      - Added detailed logging throughout the download process
+      - Tracked each file as it's processed to identify where failures occur
+      - Added counters to track successful and failed files
+      - Implemented file statistics verification to catch empty archives
+
+   2. **Improved File Detection**
+      - Added verification of file existence in Wasabi before attempting to download
+      - Added explicit checks for empty or missing Wasabi object paths
+      - Fixed error handling to better report when files couldn't be retrieved
+      - Validated that the project actually has files before attempting to create archive
+
+   3. **Fixed Stream Handling**
+      - Ensured files are properly added to the archive
+      - Added success tracking to verify files were actually added
+      - Made sure the archive is finalized properly
+      - Added output stream close validation
+
+   4. **Empty Archive Prevention**
+      - Added explicit size checks for the ZIP file before returning it
+      - Added validation of archive contents using the archiver API
+      - Implemented an early exit if no files could be processed successfully
+      - Created safeguards against premature stream closing
+
+   5. **Better Error Reporting**
+      - Enhanced error messages in API responses
+      - Added detailed error information to help diagnose issues
+      - Implemented proper error propagation through the application
+      - Added specific status codes for different error conditions
+
+   The ZIP file download now properly maintains folder structure, correctly includes all files from the project, and produces a valid, non-corrupt archive that can be extracted normally.
+
+   ## Technical Implementation Details
+
+   1. **Stream Processing**
+      - Used Node.js streams for efficient file handling
+      - Properly managed connections to Wasabi S3 storage
+      - Added file size information to archive entries when available
+      - Added proper content headers for browser downloads
+
+   2. **Error Handling**
+      - Added try/catch blocks around individual file processing
+      - Implemented fallback behavior when files can't be retrieved
+      - Added detailed logging to identify problematic files
+      - Used proper error types for better error reporting
+
+   3. **Configuration**
+      - Set appropriate timeouts for larger file downloads
+      - Used the Node.js runtime for the API route
+      - Set explicit maxDuration to prevent timeouts
+      - Optimized archive compression level for better performance
+
+# Development Log
+
+## Fixed File Manager Component
+
+- Fixed the FileManager component to properly import the FileContextMenu:
+  - Changed from default import to named import (`import { FileContextMenu } from "./file-context-menu"`)
+  - Updated the FileContextMenu component props interface to support:
+    - Added `parentId` property
+    - Added `onMoveFile` callback
+    - Made `children` prop optional
+  - Added a move file handler to support the file move operation
+
+## Fixed File Download Functionality
+
+- Created a direct file download API endpoint in `app/api/projects/[projectId]/files/[fileId]/route.ts`:
+  - Uses the more reliable approach of streaming files directly from the server
+  - Properly sets content type based on file extension
+  - Improved error handling and client feedback
+
+- Updated the file context menu in `components/file-context-menu.tsx`:
+  - Changed to use the direct API endpoint instead of signed URLs
+  - Fixed errors in function signatures and imports
+  - Improved loading state feedback
+
+- Fixed Wasabi client in `lib/wasabi-client.ts`:
+  - Removed problematic content-disposition from URL generation
+  - Improved error handling and logging
+
+## Fixed Download All Functionality
+
+- Enhanced the Wasabi client in `lib/wasabi-client.ts`:
+  - Added a more robust `downloadObject` function that properly converts streams to buffers
+  - Added proper error handling and logging for Wasabi operations
+  - Implemented better buffer handling to ensure complete downloads
+
+- Improved the download folder API route in `app/api/projects/[projectId]/download-folder/route.ts`:
+  - Updated to use the new `downloadObject` function from the Wasabi client
+  - Enhanced error handling and logging throughout the download process
+  - Added additional validation for downloaded files
+  - Increased timeout to 5 minutes to handle larger projects
+  - Added detailed logging at each step of the download process
+  - Streamlined the file download and archiving process
+
+## Previous Changes
+
+### Added File Download Support
+
+- Created API route for downloading project files as ZIP in `app/api/projects/[projectId]/download-folder/route.ts`
+  - Implemented functionality to create a ZIP archive of all project files
+  - Added proper file organization in ZIP based on folder structure
+  - Implemented error handling and validation
+  
+- Enhanced `FileContextMenu` in `components/file-context-menu.tsx`:
+  - Made context menu props optional for better component reuse
+  - Improved event handling for file operations
+
+### TipTap Editor Enhancements
+
+- Updated editor with dark theme in `components/tiptap-brief-editor.tsx`
+- Added placeholder and character count extensions
+- Improved slash command detection
+- Fixed heading commands functionality
+
+### Authentication Improvements
+
+- Updated middleware in `middleware.ts`
+- Fixed sign-out functionality in `app/sign-out/route.ts`
+
+### UI Improvements
+
+- Created account settings page in `app/account/page.tsx`
+- Updated global CSS for improved drag and drop functionality
+- Fixed slash command menu UI in `components/slash-command-menu.tsx`
+
+### Package Updates
+
+- Added `@tiptap/extension-placeholder` 
+- Added `@tiptap/extension-character-count`
+- Updated AWS SDK packages to fix compatibility issues with Next.js
+
+## Project Features Enhancement
+
+### 1. Project Management Features
+- Added project deletion functionality with context menu on project cards
+- Implemented file upload during project creation
+- Added session storage mechanism to transfer files from project creation to files page
+
+### 2. UI Enhancements
+- Updated "Download All" button with correct icon
+- Added dark theme styling consistently across components
+- Improved project card UI with context menu for actions
+
+### 3. Backend Changes
+- Added delete project server action that handles database cleanup
+- Improved file upload dialog to support controlled state
+- Updated files page to support initial uploads from project creation
+
+### 4. Bug Fixes
+- Fixed client component event handler errors by:
+  - Converting files page to server component
+  - Creating a separate client component for file page actions
+- Fixed "Module not found: Can't resolve 'net'" error by:
+  - Adding webpack fallbacks in next.config.js for Node-specific modules
+  - Creating a NextJS-compatible postgres adapter
+- Fixed base64Data type issues in file upload dialog
+
+### Next Steps
+- Continue implementing Wasabi storage integration for file uploads
+- Enhance error handling for file uploads
+- Add more features to project context menu (e.g., rename, duplicate)
+

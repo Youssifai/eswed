@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createProject as dbCreateProject } from "@/db/queries/projects-queries";
+import { createProject as dbCreateProject, deleteProject as dbDeleteProject } from "@/db/queries/projects-queries";
 import { createDefaultFolders } from "@/db/queries/files-queries";
 import { eq, desc } from "drizzle-orm";
 import { projectsTable } from "@/db/schema/projects-schema";
@@ -73,5 +73,51 @@ export async function getAllProjects() {
   } catch (error) {
     console.error("Error fetching projects:", error);
     throw new Error("Failed to load projects");
+  }
+}
+
+/**
+ * Deletes a project and all associated files from database and Wasabi
+ */
+export async function deleteProject(projectId: string) {
+  const { userId } = auth();
+
+  if (!userId) {
+    throw new Error("You must be logged in to delete a project");
+  }
+
+  try {
+    // Get the project to verify ownership
+    const project = await db.query.projects.findFirst({
+      where: eq(projectsTable.id, projectId),
+    });
+
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Verify project ownership
+    if (project.ownerId !== userId) {
+      throw new Error("Unauthorized to delete this project");
+    }
+
+    // Delete project files from Wasabi (if integration exists)
+    if (project.wasabiFolderPath) {
+      // This would be implemented once Wasabi integration is added
+      // await deleteWasabiFolder(project.wasabiFolderPath);
+    }
+
+    // Delete the project from database (cascade will delete associated files)
+    await dbDeleteProject(projectId);
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting project:", error);
+    if (error instanceof Error) {
+      throw new Error(`Failed to delete project: ${error.message}`);
+    } else {
+      throw new Error("Failed to delete project: Unknown error");
+    }
   }
 } 

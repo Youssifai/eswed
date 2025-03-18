@@ -1,5 +1,6 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, GetObjectCommandInput, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Readable } from "stream";
 
 /**
  * Initialize S3 client for Wasabi with environment credentials
@@ -34,6 +35,58 @@ export function getWasabiClient() {
   });
   
   return client;
+}
+
+/**
+ * Enhanced function to download an object from Wasabi
+ * @param objectKey The key of the object in the Wasabi bucket
+ * @returns Buffer containing the file contents or null if not found
+ */
+export async function downloadObject(objectKey: string): Promise<Buffer | null> {
+  console.log(`[Wasabi] Starting download of object: ${objectKey}`);
+  const bucketName = process.env.WASABI_BUCKET_NAME;
+  if (!bucketName) {
+    console.error("[Wasabi] Missing bucket name in environment variables");
+    return null;
+  }
+
+  try {
+    const s3Client = getWasabiClient();
+    console.log(`[Wasabi] Getting object from bucket: ${bucketName}, key: ${objectKey}`);
+    
+    const params: GetObjectCommandInput = {
+      Bucket: bucketName,
+      Key: objectKey,
+    };
+    
+    const command = new GetObjectCommand(params);
+    const response = await s3Client.send(command);
+    
+    if (!response.Body) {
+      console.error(`[Wasabi] No body returned for object: ${objectKey}`);
+      return null;
+    }
+    
+    // Convert stream to buffer
+    const bodyStream = response.Body as unknown as Readable;
+    const chunks: Buffer[] = [];
+    
+    return new Promise<Buffer | null>((resolve, reject) => {
+      bodyStream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      bodyStream.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        console.log(`[Wasabi] Downloaded object: ${objectKey}, size: ${buffer.length} bytes`);
+        resolve(buffer);
+      });
+      bodyStream.on('error', (err) => {
+        console.error(`[Wasabi] Error reading stream for object: ${objectKey}`, err);
+        reject(err);
+      });
+    });
+  } catch (error) {
+    console.error(`[Wasabi] Error downloading object: ${objectKey}`, error);
+    return null;
+  }
 }
 
 /**
@@ -150,7 +203,7 @@ export function getPlaceholderDataUrl(fileName: string): string {
   const pngPlaceholder = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
   
   // Tiny JPEG (1x1 pixel, white)
-  const jpgPlaceholder = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8qqKKKAP/2Q==';
+  const jpgPlaceholder = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8qqKKKAP/2Q==';
   
   // PDF placeholder with a single page
   const pdfPlaceholder = 'data:application/pdf;base64,JVBERi0xLjUKJbXtrvsKMyAwIG9iago8PCAvTGVuZ3RoIDQgMCBSCiAgIC9GaWx0ZXIgL0ZsYXRlRGVjb2RlCj4+CnN0cmVhbQp4nCvkCuQCABLaAc0KZW5kc3RyZWFtCmVuZG9iago0IDAgb2JqCiAgIDEyCmVuZG9iagoyIDAgb2JqCjw8Cj4+CmVuZG9iago1IDAgb2JqCjw8IC9UeXBlIC9QYWdlCiAgIC9QYXJlbnQgMSAwIFIKICAgL01lZGlhQm94IFsgMCAwIDYxMiA3OTIgXQogICAvQ29udGVudHMgMyAwIFIKICAgL0dyb3VwIDw8CiAgICAgIC9UeXBlIC9Hcm91cAogICAgICAvUyAvVHJhbnNwYXJlbmN5CiAgICAgIC9JIHRydWUKICAgICAgL0NTIC9EZXZpY2VSR0IKICAgPj4KICAgL1Jlc291cmNlcyAyIDAgUgo+PgplbmRvYmoKMSAwIG9iago8PCAvVHlwZSAvUGFnZXMKICAgL0tpZHMgWyA1IDAgUiBdCiAgIC9Db3VudCAxCj4+CmVuZG9iago2IDAgb2JqCjw8IC9DcmVhdG9yIChjYWlybyAxLjE1LjEyIChodHRwOi8vY2Fpcm9ncmFwaGljcy5vcmcpKQogICAvUHJvZHVjZXIgKGNhaXJvIDEuMTUuMTIgKGh0dHA6Ly9jYWlyb2dyYXBoaWNzLm9yZykpCj4+CmVuZG9iago3IDAgb2JqCjw8IC9UeXBlIC9DYXRhbG9nCiAgIC9QYWdlcyAxIDAgUgo+PgplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwNDI4IDAwMDAwIG4gCjAwMDAwMDAxMjcgMDAwMDAgbiAKMDAwMDAwMDAxNSAwMDAwMCBuIAowMDAwMDAwMTA2IDAwMDAwIG4gCjAwMDAwMDAxNDggMDAwMDAgbiAKMDAwMDAwMDQ5MyAwMDAwMCBuIAowMDAwMDAwNjIwIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgOAogICAvUm9vdCA3IDAgUgogICAvSW5mbyA2IDAgUgo+PgpzdGFydHhyZWYKNjcyCiUlRU9GCg==';
@@ -203,12 +256,11 @@ export async function getDownloadUrl(objectKey: string, fileName?: string): Prom
       };
     }
     
+    // Generate a simple URL without content-disposition which can cause issues
     const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: objectKey,
-      ResponseContentDisposition: fileName 
-        ? `attachment; filename="${encodeURIComponent(fileName)}"` 
-        : 'attachment'
+      // Remove content-disposition which can cause URL issues
     });
     
     const url = await getSignedUrl(client, command, { expiresIn: 3600 });
@@ -224,5 +276,51 @@ export async function getDownloadUrl(objectKey: string, fileName?: string): Prom
       success: false,
       error: error instanceof Error ? error.message : "Unknown error generating download URL"
     };
+  }
+}
+
+/**
+ * Function to handle direct upload to Wasabi from server
+ * @param objectKey The key of the object in the Wasabi bucket
+ * @param fileBuffer The buffer containing the file data
+ * @returns True if upload was successful, false otherwise
+ */
+export async function uploadToWasabi(objectKey: string, fileBuffer: Buffer): Promise<boolean> {
+  try {
+    const bucketName = process.env.WASABI_BUCKET_NAME || "";
+    const s3Client = getWasabiClient();
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: bucketName,
+        Key: objectKey,
+        Body: fileBuffer,
+      })
+    );
+    return true;
+  } catch (error) {
+    console.error("Error uploading to Wasabi:", error);
+    throw error;
+  }
+}
+
+/**
+ * Function to delete an object from Wasabi
+ * @param objectKey The key of the object in the Wasabi bucket
+ * @returns True if deletion was successful, false otherwise
+ */
+export async function deleteFromWasabi(objectKey: string): Promise<boolean> {
+  try {
+    const bucketName = process.env.WASABI_BUCKET_NAME || "";
+    const s3Client = getWasabiClient();
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: objectKey,
+      })
+    );
+    return true;
+  } catch (error) {
+    console.error("Error deleting from Wasabi:", error);
+    throw error;
   }
 } 

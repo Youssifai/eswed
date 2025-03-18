@@ -95,7 +95,7 @@ export default function CreateFolderDialog({
           <Button 
             onClick={handleCreate}
             disabled={isCreating}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
           >
             {isCreating ? "Creating..." : "Create Folder"}
           </Button>

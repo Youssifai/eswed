@@ -2,166 +2,158 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { getProjectById } from "@/db/queries/projects-queries";
-import { createFile } from "@/db/queries/files-queries";
+import { createFile, updateFileWasabiPath } from "@/db/queries/files-queries";
 import { determineAutoSortFolder } from "./file-actions";
 import { revalidatePath } from "next/cache";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { getWasabiClient, generateWasabiPath } from "@/lib/wasabi-client";
+import { getWasabiClient, generateWasabiPath, uploadToWasabi } from "@/lib/wasabi-client";
 
-interface ChunkInfo {
+export interface ChunkMetadata {
+  projectId: string;
   fileName: string;
   fileType: string;
-  parentId?: string;
+  fileSize: number;
+  parentId: string | null;
+  description: string | null;
+  tags: string | null;
   chunkIndex: number;
   totalChunks: number;
-  chunkData: string; // base64 encoded chunk
-  fileSize: string;
-  description?: string;
-  tags?: string[];
 }
 
-// Temporary storage for chunks (in memory)
-// In a production app, use a more robust solution like a temporary file storage
-const chunkStorage: Record<string, ArrayBuffer[]> = {};
+// Maps file ids to chunk data
+const chunksStore = new Map<string, {
+  chunks: ArrayBuffer[];
+  metadata: ChunkMetadata;
+  fileId?: string;
+}>();
 
 /**
  * Handles a chunk of a large file upload
  */
 export async function uploadFileChunk(
-  chunk: ArrayBuffer,
-  chunkInfo: {
-    projectId: string;
-    fileName: string;
-    fileType: string;
-    fileSize: number;
-    parentId?: string | null;
-    description?: string | null;
-    tags?: string | null;
-    chunkIndex: number;
-    totalChunks: number;
-  }
+  chunk: ArrayBuffer, 
+  metadata: ChunkMetadata
 ): Promise<{ success: boolean; fileId?: string; error?: string }> {
-  const { userId } = auth();
-
-  if (!userId) {
-    return { success: false, error: "Authentication required" };
-  }
-
   try {
-    // Check if user owns the project
-    const project = await getProjectById(chunkInfo.projectId);
-    
-    if (!project) {
-      return { success: false, error: "Project not found" };
-    }
-    
-    if (project.ownerId !== userId) {
-      return { success: false, error: "Unauthorized to access this project" };
+    const { userId } = auth();
+    if (!userId) {
+      return { success: false, error: "Unauthorized" };
     }
 
-    // Create a unique key for this file's chunks
-    const fileKey = `${chunkInfo.projectId}_${chunkInfo.fileName}_${chunkInfo.fileSize}`;
+    // Convert ArrayBuffer to a plain serializable format
+    const serializedChunk = Array.from(new Uint8Array(chunk));
     
-    // Initialize the chunks array if it doesn't exist
-    if (!chunkStorage[fileKey]) {
-      chunkStorage[fileKey] = new Array(chunkInfo.totalChunks);
+    // Create a unique key for this file upload
+    const uploadKey = `${userId}_${metadata.projectId}_${metadata.fileName}_${Date.now()}`;
+    
+    // If this is the first chunk, initialize store
+    if (metadata.chunkIndex === 0) {
+      chunksStore.set(uploadKey, {
+        chunks: [],
+        metadata
+      });
+      
+      // For the first chunk, also create a file record in the database
+      const sortedParentId = metadata.parentId || 
+        await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+      
+      // Create wasabi path for the file
+      const wasabiObjectPath = generateWasabiPath(
+        userId,
+        metadata.projectId,
+        metadata.fileName,
+        sortedParentId
+      );
+      
+      // Create file record
+      const file = await createFile({
+        projectId: metadata.projectId,
+        name: metadata.fileName,
+        type: "file",
+        parentId: sortedParentId,
+        mimeType: metadata.fileType || "application/octet-stream",
+        size: metadata.fileSize.toString(),
+        wasabiObjectPath,
+        description: metadata.description,
+        tags: metadata.tags,
+      });
+      
+      // Save the file id in the chunks store
+      chunksStore.get(uploadKey)!.fileId = file.id;
     }
     
-    // Store this chunk
-    chunkStorage[fileKey][chunkInfo.chunkIndex] = chunk;
+    // Get the store for this upload
+    const fileStore = chunksStore.get(uploadKey);
+    if (!fileStore) {
+      return { 
+        success: false, 
+        error: "Upload session not found" 
+      };
+    }
     
-    // Check if we have all chunks
-    const isComplete = chunkStorage[fileKey].every(chunk => chunk !== undefined);
+    // Convert back to ArrayBuffer and store the chunk
+    const arrayBuffer = new Uint8Array(serializedChunk).buffer;
+    fileStore.chunks.push(arrayBuffer);
     
-    // If this is the last chunk, combine and upload the complete file
-    if (isComplete) {
-      console.log(`All ${chunkInfo.totalChunks} chunks received for ${chunkInfo.fileName}. Combining...`);
-      
-      // Combine all chunks
-      const totalLength = chunkStorage[fileKey].reduce((total, chunk) => total + chunk.byteLength, 0);
-      const completeFile = new Uint8Array(totalLength);
+    // If this is the last chunk, assemble and upload the file
+    if (metadata.chunkIndex === metadata.totalChunks - 1) {
+      // Assemble chunks into a single buffer
+      const totalSize = fileStore.chunks.reduce((size, chunk) => size + chunk.byteLength, 0);
+      const assembledFile = new Uint8Array(totalSize);
       
       let offset = 0;
-      for (const chunk of chunkStorage[fileKey]) {
-        completeFile.set(new Uint8Array(chunk), offset);
+      for (const chunk of fileStore.chunks) {
+        assembledFile.set(new Uint8Array(chunk), offset);
         offset += chunk.byteLength;
       }
       
-      // If no specific parentId is provided, determine the best folder
-      let targetParentId = chunkInfo.parentId;
-      if (!targetParentId) {
-        targetParentId = await determineAutoSortFolder(
-          chunkInfo.projectId, 
-          chunkInfo.fileName, 
-          chunkInfo.fileType
-        );
-      }
+      // Upload to Wasabi
+      const fileId = fileStore.fileId;
+      const file = assembledFile.buffer;
       
-      // Generate Wasabi path
-      const wasabiObjectPath = generateWasabiPath(
-        userId,
-        chunkInfo.projectId,
-        chunkInfo.fileName,
-        targetParentId
-      );
-      
-      try {
-        // Upload to Wasabi
-        const s3Client = getWasabiClient();
-        await s3Client.send(
-          new PutObjectCommand({
-            Bucket: process.env.WASABI_BUCKET_NAME,
-            Key: wasabiObjectPath,
-            Body: completeFile,
-            ContentType: chunkInfo.fileType,
-          })
-        );
-        
-        // Create file record in database
-        const file = await createFile({
-          projectId: chunkInfo.projectId,
-          name: chunkInfo.fileName,
-          type: "file",
-          parentId: targetParentId || null,
-          mimeType: chunkInfo.fileType,
-          size: chunkInfo.fileSize.toString(),
-          wasabiObjectPath,
-          description: chunkInfo.description || null,
-          tags: Array.isArray(chunkInfo.tags) 
-            ? chunkInfo.tags.join(',') 
-            : chunkInfo.tags,
-        });
-        
-        // Clean up memory
-        delete chunkStorage[fileKey];
-        
-        // Revalidate the files page
-        revalidatePath(`/projects/${chunkInfo.projectId}/files`);
-        
-        return { 
-          success: true, 
-          fileId: file.id 
-        };
-      } catch (uploadError) {
-        console.error("Error uploading complete file to Wasabi:", uploadError);
+      if (!fileId) {
         return { 
           success: false, 
-          error: "Failed to upload complete file to storage" 
+          error: "File ID not found" 
         };
       }
+      
+      // Get the wasabi path from database
+      const sortedParentId = metadata.parentId || 
+        await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+      
+      // Generate path
+      const wasabiObjectPath = generateWasabiPath(
+        userId,
+        metadata.projectId,
+        metadata.fileName,
+        sortedParentId
+      );
+      
+      // Upload to Wasabi
+      await uploadToWasabi(wasabiObjectPath, Buffer.from(file));
+      
+      // Update the file record with the Wasabi path
+      await updateFileWasabiPath(fileId, wasabiObjectPath);
+      
+      // Clean up chunks
+      chunksStore.delete(uploadKey);
+      
+      return {
+        success: true,
+        fileId
+      };
     }
     
-    // If we don't have all chunks yet, just return success for this chunk
-    return { 
-      success: true,
-      // Only return fileId when all chunks are processed
-      fileId: isComplete ? 'pending' : undefined
+    // If not the last chunk, just return success
+    return {
+      success: true
     };
   } catch (error) {
-    console.error("Error processing file chunk:", error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
+    console.error("Error in uploadFileChunk:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error"
     };
   }
 } 

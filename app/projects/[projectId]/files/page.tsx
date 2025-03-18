@@ -6,13 +6,13 @@ import { getAllFilesByProjectId } from "@/db/queries/files-queries";
 import FileManager from "@/components/file-manager";
 import CreateFolderDialog from "@/components/create-folder-dialog";
 import UploadFileDialog from "@/components/upload-file-dialog";
-import { Button } from "@/components/ui/button";
-import { FolderPlus, Upload, AlertCircle } from "lucide-react";
+import { FolderPlus, Upload, AlertCircle, Download } from "lucide-react";
 import { checkDatabaseConnection } from "@/db/db";
-import { SearchFilterBar, SearchFilters } from "@/components/search-filter-bar";
+import { SearchFilters } from "@/components/search-filter-bar";
 import { searchFiles } from "@/actions/search-actions";
 import { SelectFile } from "@/db/schema/files-schema";
 import { SearchFilterBarWrapper } from "@/components/search-filter-bar-wrapper";
+import FilePageActions from "@/components/file-page-actions";
 
 interface FilesPageProps {
   params: {
@@ -23,6 +23,7 @@ interface FilesPageProps {
     fileType?: string;
     mimeTypeGroup?: string;
     showSystemFolders?: string;
+    initialUpload?: string;
   };
 }
 
@@ -80,25 +81,17 @@ export default async function FilesPage({ params, searchParams }: FilesPageProps
       files = await getAllFilesByProjectId(projectId);
     }
 
+    const hasInitialUpload = searchParams.initialUpload === 'true';
+
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-4xl font-semibold">Project Files</h1>
-          <div className="flex gap-2">
-            <CreateFolderDialog projectId={projectId}>
-              <Button className="bg-neutral-800 hover:bg-neutral-700 text-white">
-                <FolderPlus className="h-4 w-4 mr-2" />
-                Create Folder
-              </Button>
-            </CreateFolderDialog>
-            
-            <UploadFileDialog projectId={projectId}>
-              <Button className="bg-neutral-800 hover:bg-neutral-700 text-white">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Files
-              </Button>
-            </UploadFileDialog>
-          </div>
+          
+          <FilePageActions 
+            projectId={projectId} 
+            initialUpload={hasInitialUpload} 
+          />
         </div>
         
         <div className="mb-6">

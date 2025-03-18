@@ -25,6 +25,10 @@ const nextConfig = {
       bodySizeLimit: '100mb',
     },
   },
+  reactStrictMode: true,
+  images: {
+    domains: ['img.clerk.com'],
+  },
 };
 
 export default nextConfig;

@@ -53,6 +53,7 @@ type TreeViewProps = {
   indicator?: boolean;
   elements?: TreeViewElement[];
   initialExpandedItems?: string[];
+  initialExpanded?: boolean;
   openIcon?: React.ReactNode;
   closeIcon?: React.ReactNode;
 } & TreeViewComponentProps;
@@ -64,6 +65,7 @@ const Tree = forwardRef<HTMLDivElement, TreeViewProps>(
       elements,
       initialSelectedId,
       initialExpandedItems,
+      initialExpanded = false,
       children,
       indicator = true,
       openIcon,

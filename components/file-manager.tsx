@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { File as FileIcon, Folder as FolderIcon } from "lucide-react";
+import { File as FileIcon, Folder as FolderIcon, FolderPlus, Upload, Download } from "lucide-react";
 import { Tree, Folder, File as TreeFile } from "./magicui/file-tree";
 import { cn } from "@/lib/utils";
-import FileContextMenu from "./file-context-menu";
+import { FileContextMenu } from "./file-context-menu";
 import MoveFileDialog from "./move-file-dialog";
 import { toast } from "sonner";
 import { moveFile } from "@/actions/file-actions";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 type FileType = {
   id: string;
@@ -425,8 +426,6 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
             fileName={item.name}
             projectId={projectId}
             fileType="folder"
-            parentId={item.parentId}
-            onMoveFile={() => handleMoveFile(item)}
           >
             <div
               draggable={true}
@@ -448,7 +447,7 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
               }}
               onClick={(e) => e.stopPropagation()}
               className={cn(
-                "relative rounded-md transition-colors duration-200 file-tree-item folder-drop-target",
+                "relative rounded-md transition-colors duration-200 file-tree-item folder-drop-target my-1.5 pb-1.5",
                 isDropTarget && isValidDropTarget && "bg-blue-800/20 outline-blue-500/50 scale-102 drag-over",
                 isDropTarget && !isValidDropTarget && "bg-red-800/20 outline-red-500/50"
               )}
@@ -465,7 +464,9 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
                 isSelectable={true}
               >
                 {item.children && item.children.length > 0 ? (
-                  renderTree(item.children)
+                  <div className="pl-2">
+                    {renderTree(item.children)}
+                  </div>
                 ) : null}
               </Folder>
             </div>
@@ -479,9 +480,7 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
             fileName={item.name}
             projectId={projectId}
             fileType="file"
-            wasabiObjectPath={item.wasabiObjectPath}
-            parentId={item.parentId}
-            onMoveFile={() => handleMoveFile(item)}
+            wasabiObjectPath={item.wasabiObjectPath || undefined}
           >
             <div
               draggable={true}
@@ -490,7 +489,7 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
                 handleDragStart(e, item);
               }}
               onClick={(e) => e.stopPropagation()}
-              className="relative transition-transform duration-200 file-tree-item"
+              className="relative transition-transform duration-200 file-tree-item my-1"
             >
               <TreeFile
                 key={item.id}
@@ -528,42 +527,65 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
   };
 
   return (
-    <>
-      <div 
-        className="h-full flex flex-col overflow-hidden border border-neutral-800 rounded-lg bg-neutral-900"
-        onDragOver={(e) => handleDragOver(e, null)}
-        onDragLeave={(e) => handleDragLeave(e, null)}
-        onDrop={(e) => handleDrop(e, null)}
-      >
-        <div className="p-4 border-b border-neutral-800">
+    <div className="flex flex-col h-full bg-[#121212] text-white border border-neutral-800 rounded-xl overflow-hidden">
+      <div className="p-4 border-b border-neutral-800">
+        <div className="flex flex-col gap-4">
           <h3 className="text-lg font-medium">Files</h3>
-        </div>
-        <div className={cn(
-          "flex-1 overflow-auto p-2 transition-colors duration-300",
-          draggedFile && dragOverFolderId === null && "bg-blue-800/10 outline-dashed outline-2 outline-blue-500/30"
-        )}>
-          {draggedFile && dragOverFolderId === null && (
-            <div className="flex items-center justify-center mt-4 mb-2 text-sm text-blue-400">
-              <span>Drop here to move to root folder</span>
-            </div>
-          )}
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <p>Loading files...</p>
-            </div>
-          ) : treeData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-neutral-400">
-              <p>No files or folders yet. Start by creating a folder or uploading a file.</p>
-            </div>
-          ) : (
-            <Tree>
-              {renderTree(treeData)}
-            </Tree>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
+              onClick={() => {
+                document.getElementById('create-folder-trigger')?.click();
+              }}
+            >
+              <FolderPlus size={16} className="mr-1" /> Create Folder
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
+              onClick={() => {
+                document.getElementById('upload-file-trigger')?.click();
+              }}
+            >
+              <Upload size={16} className="mr-1" /> Upload Files
+            </Button>
+            <Button
+              variant="outline"
+              className="bg-[#252525] hover:bg-[#333333] text-white border-neutral-700"
+              onClick={() => {
+                const downloadUrl = `/api/projects/${projectId}/download-folder`;
+                // Open in a new tab to handle large downloads
+                window.open(downloadUrl, '_blank');
+              }}
+            >
+              <Download size={16} className="mr-1" /> Download All
+            </Button>
+          </div>
         </div>
       </div>
-      
-      {fileToMove && moveDialogOpen && (
+      <div className={cn(
+        "flex-1 overflow-auto relative p-4",
+        "scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-neutral-900"
+      )}>
+        {treeData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12">
+            <FolderIcon className="h-16 w-16 text-neutral-500 mb-4" />
+            <h3 className="text-xl font-medium text-neutral-300 mb-2">No files yet</h3>
+            <p className="text-neutral-500 max-w-sm">
+              Upload files or create folders to organize your project assets.
+            </p>
+          </div>
+        ) : (
+          <Tree
+            className="min-w-full w-max"
+          >
+            {renderTree(treeData)}
+          </Tree>
+        )}
+      </div>
+      {/* Move File Dialog */}
+      {fileToMove && (
         <MoveFileDialog
           isOpen={moveDialogOpen}
           onClose={() => {
@@ -577,6 +599,6 @@ export default function FileManager({ projectId, rootFiles = [] }: FileManagerPr
           allFolders={allFoldersRef.current}
         />
       )}
-    </>
+    </div>
   );
 } 

@@ -119,7 +119,7 @@ export default function NavigationDock() {
         
         {showProfileMenu && (
           <div className="absolute bottom-full mb-2 right-0 bg-[#292929] border border-[#4A4A4A] rounded-lg p-1 w-44 shadow-lg">
-            <Link href="/profile">
+            <Link href="/account">
               <div className="flex items-center gap-2 px-3 py-2 rounded hover:bg-[#1E1E1E] transition-colors">
                 <Settings size={16} />
                 <span>Account settings</span>
