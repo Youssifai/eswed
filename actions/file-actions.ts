@@ -93,7 +93,7 @@ export async function uploadFile(
     description?: string; // Optional description
     tags?: string; // Optional comma-separated tags
   },
-  parentId?: string
+  parentId?: string | null
 ) {
   const { userId } = auth();
 
@@ -137,11 +137,11 @@ export async function uploadFile(
     }
 
     // Auto-sort the file into the appropriate folder based on file extension and name
-    let sortedParentId = parentId;
+    let sortedParentId: string | null = parentId || null;
     
     if (!parentId) {
       // Only auto-sort if no specific parent folder is provided
-      sortedParentId = await determineAutoSortFolder(projectId, fileInfo.name, fileInfo.type);
+      sortedParentId = await determineAutoSortFolder(projectId, fileInfo.name, fileInfo.type) || null;
     }
     
     // Generate the wasabi path where the file will be stored
@@ -616,7 +616,7 @@ export async function testAutoSorting(
       }));
     
     // Test the auto-sorting logic
-    const targetFolderId = await determineAutoSortFolder(projectId, fileName, mimeType);
+    const targetFolderId = await determineAutoSortFolder(projectId, fileName, mimeType) || null;
     let targetFolderName = "root";
     
     if (targetFolderId) {

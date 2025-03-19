@@ -54,15 +54,19 @@ export async function uploadFileChunk(
       });
       
       // For the first chunk, also create a file record in the database
-      const sortedParentId = metadata.parentId || 
-        await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+      let targetParentId: string | null = metadata.parentId;
+      if (!targetParentId) {
+        // Auto-sort the file to an appropriate folder
+        const autoSortFolder = await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+        targetParentId = autoSortFolder || null;
+      }
       
       // Create wasabi path for the file
       const wasabiObjectPath = generateWasabiPath(
         userId,
         metadata.projectId,
         metadata.fileName,
-        sortedParentId
+        targetParentId
       );
       
       // Create file record
@@ -70,7 +74,7 @@ export async function uploadFileChunk(
         projectId: metadata.projectId,
         name: metadata.fileName,
         type: "file",
-        parentId: sortedParentId,
+        parentId: targetParentId,
         mimeType: metadata.fileType || "application/octet-stream",
         size: metadata.fileSize.toString(),
         wasabiObjectPath,
@@ -119,15 +123,18 @@ export async function uploadFileChunk(
       }
       
       // Get the wasabi path from database
-      const sortedParentId = metadata.parentId || 
-        await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+      let targetParentId: string | null = metadata.parentId;
+      if (!targetParentId) {
+        const autoSortFolder = await determineAutoSortFolder(metadata.projectId, metadata.fileName, metadata.fileType);
+        targetParentId = autoSortFolder || null;
+      }
       
       // Generate path
       const wasabiObjectPath = generateWasabiPath(
         userId,
         metadata.projectId,
         metadata.fileName,
-        sortedParentId
+        targetParentId
       );
       
       // Upload to Wasabi

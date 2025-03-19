@@ -930,7 +930,15 @@ Fixed the file download functionality from Wasabi storage:
 
 ## Deployment Fixes for Vercel
 
-### Latest Fixes (September 2023)
+### Latest TypeScript Fixes (September 2023)
+- Fixed TypeScript errors in build process:
+  - Fixed type mismatch between `string | undefined` and `string | null` in file handling
+  - Added explicit type annotations in file upload API routes
+  - Improved handling of auto-sort folder function return types
+  - Fixed implementation in chunked upload actions
+  - Applied consistent pattern for handling optional folder IDs
+
+### Latest Build Fixes (September 2023)
 - Fixed Build Errors:
   - Removed "use server" directives from API route files which were causing build failures
   - Fixed Clerk component prop issues (changed `forceRedirectUrl` to `redirectUrl` in login/signup pages)

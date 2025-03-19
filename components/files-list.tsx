@@ -77,18 +77,18 @@ export function FilesList({ files, projectId }: FilesListProps) {
     setIsLoading(prev => ({ ...prev, [fileId]: true }));
     
     try {
-      const downloadUrl = await getFileDownloadUrl(fileId, projectId);
+      const response = await getFileDownloadUrl(fileId, projectId);
       
-      if (downloadUrl) {
+      if (response.success && response.downloadUrl) {
         // Create a temporary anchor element to trigger download
         const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = fileName;
+        link.href = response.downloadUrl;
+        link.download = response.fileName || fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } else {
-        console.error("Failed to get download URL");
+        console.error("Failed to get download URL:", response.message);
       }
     } catch (error) {
       console.error("Error downloading file:", error);

@@ -61,9 +61,11 @@ export async function POST(req: NextRequest) {
     }
 
     // If no specific parentId is provided, determine the best folder
-    let targetParentId = parentId;
+    let targetParentId: string | null = parentId;
     if (!parentId) {
-      targetParentId = await determineAutoSortFolder(projectId, file.name, file.type);
+      // Cast the result to either string or null
+      const autoSortFolder = await determineAutoSortFolder(projectId, file.name, file.type);
+      targetParentId = autoSortFolder || null;
     }
 
     // Generate the wasabi path

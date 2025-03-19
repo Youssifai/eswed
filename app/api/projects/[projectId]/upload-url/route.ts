@@ -55,10 +55,11 @@ export async function POST(
     }
 
     // If no specific parentId is provided, determine the best folder to put the file in
-    let targetParentId = parentId;
+    let targetParentId: string | null = parentId;
     if (!parentId) {
       console.log(`No parent ID provided, auto-sorting ${fileName}`);
-      targetParentId = await determineAutoSortFolder(params.projectId, fileName, fileType);
+      const autoSortFolder = await determineAutoSortFolder(params.projectId, fileName, fileType);
+      targetParentId = autoSortFolder || null;
       console.log(`Auto-sorted to folder with ID: ${targetParentId || 'root'}`);
     }
 
