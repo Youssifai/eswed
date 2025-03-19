@@ -1033,3 +1033,43 @@ Fixed the file download functionality from Wasabi storage:
 - This fix prevents build errors caused by type mismatch between `string | undefined` and `string | null`
 - Fixed TypeScript error that was blocking successful build on Vercel
 
+## Drizzle ORM Query Fix - 2024-09-X
+
+### Fixed Type Error in Drizzle ORM Query
+- Updated the `searchFiles` function in `db/queries/files-queries.ts` to fix a type error
+- Changed the query building approach from chaining multiple `.where()` calls to using a conditions array
+- Implemented the `.where(and(...conditions))` pattern to properly handle multiple filter conditions
+- This resolved the TypeScript error: "Property 'where' does not exist on type 'Omit<PgSelectBase<...>'"
+- Fixed build failure that was preventing successful deployment
+
+# Development Logs
+
+## Build Fixes - 2024-09-X
+
+### Fixed Vercel Build Process
+- Created/updated `vercel.json` to properly configure serverless functions
+  - Set runtime to `nodejs18.x` for API routes
+  - Limited maxDuration to 60 seconds (Vercel free tier limit)
+  - Set memory to 1024MB for optimal performance
+- Added explicit runtime configuration in `middleware.ts`
+  - Forced Node.js runtime instead of Edge Runtime
+  - Prevents issues with Clerk authentication in Edge environment
+- Updated `next.config.js` to handle build warnings
+  - Added polyfills and fallbacks for Node.js APIs
+  - Disabled ESLint during production builds
+
+### Fixed Drizzle ORM Query
+- Updated the `searchFiles` function in `db/queries/files-queries.ts` to fix a type error
+- Changed the query building approach from chaining multiple `.where()` calls to using a conditions array
+- Implemented the `.where(and(...conditions))` pattern to properly handle multiple filter conditions
+- This resolved the TypeScript error: "Property 'where' does not exist on type 'Omit<PgSelectBase<...>'"
+- Fixed build failure that was preventing successful deployment
+
+## TypeScript Error Fixes - 2024-09-X
+
+### Fixed Type Error with parentId in Upload Dialog
+- Updated the `UploadFileDialogProps` interface in `components/upload-file-dialog.tsx`
+- Changed `parentId?: string` to `parentId?: string | null` to match `ChunkMetadata` interface
+- Ensures proper type compatibility between the component props and the expected API parameters
+- This fix prevents build errors caused by type mismatch between `string | undefined` and `string | null`
+

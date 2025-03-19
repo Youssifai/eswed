@@ -210,18 +210,15 @@ export const searchFiles = async (
       throw new Error("Project ID is required");
     }
 
-    // Create base query with just the project ID condition
-    let query = db
-      .select()
-      .from(filesTable)
-      .where(eq(filesTable.projectId, projectId));
+    // Start building conditions
+    let conditions = [eq(filesTable.projectId, projectId)];
 
     // Add text search if provided
     if (searchParams.query && searchParams.query.trim() !== '') {
       const searchTerm = `%${searchParams.query.toLowerCase()}%`;
       
-      // Use SQL template for more complex conditions
-      query = query.where(
+      // Add text search condition
+      conditions.push(
         sql`(${filesTable.name} ILIKE ${searchTerm} OR 
              COALESCE(${filesTable.description}, '') ILIKE ${searchTerm} OR 
              COALESCE(${filesTable.tags}, '') ILIKE ${searchTerm})`
@@ -230,7 +227,7 @@ export const searchFiles = async (
 
     // Add file type filter if provided
     if (searchParams.fileType) {
-      query = query.where(eq(filesTable.type, searchParams.fileType as any));
+      conditions.push(eq(filesTable.type, searchParams.fileType as any));
     }
 
     // Add mime type filter if provided
@@ -240,17 +237,21 @@ export const searchFiles = async (
         .map(mimeType => `COALESCE(mime_type, '') ILIKE '%${mimeType}%'`)
         .join(' OR ');
       
-      query = query.where(sql`(${sql.raw(mimeTypeQuery)})`);
+      conditions.push(sql`(${sql.raw(mimeTypeQuery)})`);
     }
 
-    // Execute and return ordered results
-    return await query.orderBy(asc(filesTable.name));
+    // Execute query with all conditions
+    return await db
+      .select()
+      .from(filesTable)
+      .where(and(...conditions))
+      .orderBy(asc(filesTable.name));
   } catch (error) {
     console.error("Error searching files:", error);
     if (error instanceof Error) {
       throw new Error(`Failed to search files: ${error.message}`);
     } else {
-      throw new Error("Failed to search files: Unknown database error");
+      throw new Error("Failed to search files");
     }
   }
 };

@@ -1,7 +1,7 @@
 {
   "functions": {
-    "app/api/**/*": {
-      "runtime": "@vercel/node@2.15.3",
+    "app/api/**/*.ts": {
+      "runtime": "nodejs18.x",
       "memory": 1024,
       "maxDuration": 60
     }
@@ -12,5 +12,7 @@
       "dest": "/api/projects/$projectId/download-folder",
       "continue": true
     }
-  ]
+  ],
+  "buildCommand": "npm run build",
+  "regions": ["iad1"]
 } 
