@@ -6,6 +6,7 @@ import { getProjectById } from "@/db/queries/projects-queries";
 
 // Use Node.js runtime for this API route
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,

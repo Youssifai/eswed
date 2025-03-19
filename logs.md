@@ -931,17 +931,16 @@ Fixed the file download functionality from Wasabi storage:
 ## Deployment Fixes for Vercel
 
 ### Latest Fixes (September 2023)
-- Fixed Clerk component prop issues:
-  - Changed `forceRedirectUrl` to `redirectUrl` in login and signup pages
-  - Updated redirects to point to the notes page
-- Added explicit Node.js runtime declarations:
-  - Created script to add runtime declarations to all API routes
+- Fixed Build Errors:
+  - Removed "use server" directives from API route files which were causing build failures
+  - Fixed Clerk component prop issues (changed `forceRedirectUrl` to `redirectUrl` in login/signup pages)
+  - Simplified webpack configuration in next.config.js to avoid runtime errors
+  - Added consistent runtime and dynamic export declarations to all API routes
   - Updated middleware.ts with explicit runtime export
   - Ensured vercel.json uses correct runtime format (`@vercel/node@2.15.3`)
 - Fixed Edge Runtime compatibility issues:
-  - Added browser polyfills for Node.js APIs in next.config.js
-  - Added browser-compatible dependencies for crypto, buffer, and stream
-  - Enhanced webpack configuration with proper fallbacks
+  - Added browser-compatible fallbacks for Node.js APIs
+  - Updated image domains to include Clerk images
 - Enhanced authentication routing:
   - Added more public routes for login/signup pages
   - Fixed redirect URLs for better user experience

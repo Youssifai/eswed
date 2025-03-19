@@ -6,6 +6,7 @@ import Stripe from "stripe";
 
 // Use Node.js runtime for this API route
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const relevantEvents = new Set(["checkout.session.completed", "customer.subscription.updated", "customer.subscription.deleted"]);
 
