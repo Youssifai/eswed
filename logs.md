@@ -1062,24 +1062,49 @@ Fixed the file download functionality from Wasabi storage:
 
 # Deployment Fixes Log
 
-## TypeScript Type Error Fix
+## TypeScript Type Error Fix for Profile Creation
 
 **Problem:**
-- TypeScript type error in `actions/project-actions.ts` where `dbCreateProject` expects an `updatedAt` field, but it was missing in the object being passed.
+- TypeScript type error in `app/layout.tsx` where `createProfile` expects `updatedAt` and `createdAt` fields, but they were missing in the object being passed.
 
 **Solution:**
-- Added the `updatedAt` field with a new Date() value to the object passed to `dbCreateProject` in the `createProject` function.
+- Added the `updatedAt` and `createdAt` fields with a new Date() value to the object passed to `createProfile` in the `RootLayout` function:
 
 ```typescript
-const project = await dbCreateProject({
-  ownerId: userId,
-  name: data.name,
-  description: data.description,
-  briefContent: null,
-  inspirationData: null,
-  wasabiFolderPath: null,
-  updatedAt: new Date(),
+const now = new Date();
+await createProfile({
+  userId,
+  updatedAt: now,
+  createdAt: now
 });
+```
+
+## Missing Dependency Installation
+
+**Problem:**
+- The `framer-motion` library depends on `@emotion/is-prop-valid`, but it was not installed in the project.
+
+**Solution:**
+- Installed the missing dependency using:
+```bash
+npm install @emotion/is-prop-valid
+```
+
+## Edge Runtime Compatibility Issues
+
+**Problem:**
+- Node.js APIs (setImmediate, MessageChannel, MessageEvent) from Clerk and React's scheduler are not supported in Edge Runtime.
+
+**Solution:**
+- Added explicit Node.js runtime declarations to key files that use Clerk components:
+  - `app/sign-out/route.ts`
+  - `app/settings/page.tsx`
+  - `components/header.tsx`
+  - `components/dock.tsx`
+
+```typescript
+// Use Node.js runtime for this component/route
+export const runtime = "nodejs";
 ```
 
 ## Webpack Dependency Handling Fix
@@ -1099,21 +1124,13 @@ config.module.rules.push({
 });
 ```
 
-## Edge Runtime Compatibility Verification
-
-**Problem:**
-- Potential issues with Node.js APIs (setImmediate, MessageChannel, MessageEvent) from scheduler and @clerk/clerk-react that are not supported in Edge Runtime.
-
-**Solution:**
-- Verified that all API routes in the project already had the appropriate `export const runtime = "nodejs"` declaration to ensure they're using the Node.js runtime instead of Edge runtime.
-- Fixed the download-folder route.ts file to use proper runtime declaration.
-
 ## Summary
 
-All the issues have been addressed:
-1. Fixed TypeScript type error by adding the missing `updatedAt` field
-2. Enhanced the Webpack configuration to properly handle `.mjs` files
-3. Verified all API routes are properly configured to use Node.js runtime
+All the identified deployment issues have been addressed:
+1. Fixed TypeScript type errors in `actions/project-actions.ts` and `app/layout.tsx`
+2. Installed missing dependency `@emotion/is-prop-valid`
+3. Added explicit Node.js runtime declarations to key components and routes that use Clerk
+4. Enhanced Webpack configuration to properly handle `.mjs` files
 
 These changes should resolve the deployment issues on Vercel related to TypeScript type errors, Edge Runtime compatibility, and Webpack dependency handling.
 

@@ -1,6 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs";
 import { NextResponse } from "next/server";
 
+// Use Node.js runtime for this API route
+export const runtime = "nodejs";
+
 export async function GET() {
   const { userId } = auth();
   const user = await currentUser();

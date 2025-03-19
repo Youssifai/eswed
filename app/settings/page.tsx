@@ -1,5 +1,8 @@
 "use client";
 
+// Use Node.js runtime for this page
+export const runtime = "nodejs";
+
 import { useState } from "react";
 import { auth, useUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";

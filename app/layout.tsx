@@ -21,7 +21,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   if (userId) {
     const res = await getProfileByUserIdAction(userId);
     if (!res.data) {
-      await createProfile({ userId });
+      const now = new Date();
+      await createProfile({
+        userId,
+        updatedAt: now,
+        createdAt: now
+      });
     }
   }
 

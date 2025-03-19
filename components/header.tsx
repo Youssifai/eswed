@@ -1,5 +1,8 @@
 "use client";
 
+// Use Node.js runtime for this component
+export const runtime = "nodejs";
+
 import { Button } from "@/components/ui/button";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { List, Menu, X } from "lucide-react";

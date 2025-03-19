@@ -1,5 +1,8 @@
 "use client";
 
+// Use Node.js runtime for this component
+export const runtime = "nodejs";
+
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
