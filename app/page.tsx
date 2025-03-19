@@ -19,7 +19,7 @@ export default async function HomePage() {
     return redirect("/signup");
   }
 
-  // Get projects for the user, or use empty array if there's an error
+  // Get projects for the user, or use empty array if there&apos;s an error
   let projects: SelectProject[] = [];
   try {
     projects = await getProjectsByOwnerId(userId);
