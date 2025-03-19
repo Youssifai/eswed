@@ -928,6 +928,21 @@ Fixed the file download functionality from Wasabi storage:
 
 # Development Logs
 
+## Drizzle-ORM Dependency Fix - 2024-09-X
+
+### Fixed Drizzle-ORM Dependency Conflict
+- **Issue**: Build failing with error `Override for drizzle-orm@^0.33.0 conflicts with direct dependency`
+- **Root Cause**: Similar to the earlier Clerk issue, there was a version format mismatch between the override and direct dependency
+- **Solution**:
+  - Changed `drizzle-orm` direct dependency from `^0.33.0` (caret version) to `0.29.3` (exact version)
+  - Made sure it exactly matches the version specified in the overrides section
+  - Maintained the runtime specification `@vercel/node@2.15.3` as directed to avoid further runtime errors
+
+### Important Note on Vercel Configuration
+- The runtime specification must remain as `@vercel/node@2.15.3` in vercel.json
+- Using the shorter format `@vercel/node` causes deployment errors
+- This ensures consistent runtime behavior across deployments
+
 ## Npm and Vercel Configuration Fixes - 2024-09-X
 
 ### Enhanced Npm Configuration
