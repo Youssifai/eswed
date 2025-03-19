@@ -20,8 +20,8 @@ export const runtime = "nodejs";
 // Set maxDuration to 60 seconds to comply with Vercel free tier
 export const maxDuration = 60;
 
-// Maximum number of files per zip
-const MAX_FILES_PER_ZIP = 25;
+// Maximum number of files per zip - reduced for better performance within time constraints
+const MAX_FILES_PER_ZIP = 15;
 
 // Maximum total size of files to process in a single request (10MB)
 const MAX_TOTAL_SIZE_MB = 10;

@@ -926,129 +926,45 @@ Fixed the file download functionality from Wasabi storage:
       - Set explicit maxDuration to prevent timeouts
       - Optimized archive compression level for better performance
 
-# Development Log
-
-## Deployment Fixes for Vercel
-
-### Latest TypeScript Fixes (September 2023)
-- Fixed TypeScript errors in build process:
-  - Fixed type mismatch between `string | undefined` and `string | null` in file handling
-  - Added explicit type annotations in file upload API routes
-  - Improved handling of auto-sort folder function return types
-  - Fixed implementation in chunked upload actions
-  - Applied consistent pattern for handling optional folder IDs
-  - Fixed type error in upload-file-dialog.tsx by converting undefined parentId to null
-
-### Latest Build Fixes (September 2023)
-- Fixed Build Errors:
-  - Removed "use server" directives from API route files which were causing build failures
-  - Fixed Clerk component prop issues (changed `forceRedirectUrl` to `redirectUrl` in login/signup pages)
-  - Simplified webpack configuration in next.config.js to avoid runtime errors
-  - Added consistent runtime and dynamic export declarations to all API routes
-  - Updated middleware.ts with explicit runtime export
-  - Ensured vercel.json uses correct runtime format (`@vercel/node@2.15.3`)
-- Fixed Edge Runtime compatibility issues:
-  - Added browser-compatible fallbacks for Node.js APIs
-  - Updated image domains to include Clerk images
-- Enhanced authentication routing:
-  - Added more public routes for login/signup pages
-  - Fixed redirect URLs for better user experience
-
-### ESLint Fixes
-- Fixed unescaped entities in various files (changed ' to &apos; and " to &quot;)
-- Turned off `no-unescaped-entities` rule in `.eslintrc.json`
-- Added `eslint: { ignoreDuringBuilds: true }` to `next.config.js` for production builds
-- Fixed missing dependencies in React Hook dependency arrays
-- Fixed anonymous default export warning in the Postgres adapter
-
-### Runtime Configuration
-- Updated `middleware.ts` to use Node.js runtime
-- Created a `vercel.json` file with specific settings for API functions:
-  - Set `@vercel/node@2.15.3` runtime for API routes
-  - Set memory allocation to 1024MB
-  - Updated maxDuration from 300 to 60 seconds to comply with free tier limits
-- Added explicit runtime declarations in API routes
-
-### API Optimizations
-- Rewritten file download API to work within 60-second timeouts:
-  - Implemented pagination system with configurable page size (25 files per ZIP)
-  - Added size limits (10MB per download) to prevent timeouts
-  - Added file ID filtering for selective downloads
-  - Updated download handling on frontend to support multi-part downloads
-  - Added progress indicators and error handling for large downloads
-  - Improved compression settings for faster processing (reduced from level 5 to 3)
-  - Added folder depth limit to prevent deep recursion
-  - Enhanced error reporting and recovery
-  - Implemented headers for pagination metadata
-
-## UI Enhancements
-- Updated file manager to use proper dark theme styling
-- Fixed dialog component styling for consistent dark theme appearance
-- Enhanced upload dialog with progress tracking and better error handling
-- Added custom animations for drag-and-drop interactions
-- Fixed button styling and icon placement
-- Improved responsive design for mobile layouts
-- Added toast notifications for important events
-- Enhanced accessibility throughout the application
-
-## Backend Improvements
-- Optimized database queries for better performance
-- Implemented connection pooling for database connections
-- Added better error handling for Wasabi storage connections
-- Enhanced file upload mechanism with chunking support
-- Improved security by adding proper ownership checks across all APIs
-- Added support for handling larger file uploads (increased body parser limit)
-- Implemented proper cleanup of temporary files
-
-## Bug Fixes
-- Fixed context menu positioning and behavior
-- Resolved directory traversal security issues
-- Fixed file duplication handling
-- Corrected path resolution for nested folders
-- Resolved issue with file deletion not removing Wasabi objects
-- Fixed file type detection for certain file formats
-- Resolved issues with concurrent uploads
-- Fixed error handling for network issues during uploads/downloads
-
-## Next Steps
-- Implement project deletion with cascade delete of associated files
-- Add file drag-and-drop support during project creation
-- Introduce formatted text editing with slash commands
-- Enhance the brief details UX with auto-hiding behavior
-- Implement selective file recovery
-- Add batch operations for file management
-
-## Performance Metrics
-- Initial load time: Reduced from 1.2s to 0.8s
-- File upload speed: Improved by 35% with chunked uploads
-- Download processing: Now handles 3x more files before timeout
-- Database query performance: Improved by 25% with optimized indexes
-
-## TypeScript Error Fixes - 2024-09-X
-
-### Fixed Type Error with parentId in Upload Dialog
-- Updated the `UploadFileDialogProps` interface in `components/upload-file-dialog.tsx`
-- Changed `parentId?: string` to `parentId?: string | null` to match `ChunkMetadata` interface
-- Ensures proper type compatibility between the component props and the expected API parameters
-- This fix prevents build errors caused by type mismatch between `string | undefined` and `string | null`
-- Fixed TypeScript error that was blocking successful build on Vercel
-
-## Drizzle ORM Query Fix - 2024-09-X
-
-### Fixed Type Error in Drizzle ORM Query
-- Updated the `searchFiles` function in `db/queries/files-queries.ts` to fix a type error
-- Changed the query building approach from chaining multiple `.where()` calls to using a conditions array
-- Implemented the `.where(and(...conditions))` pattern to properly handle multiple filter conditions
-- This resolved the TypeScript error: "Property 'where' does not exist on type 'Omit<PgSelectBase<...>'"
-- Fixed build failure that was preventing successful deployment
-
 # Development Logs
+
+## Vercel Deployment Optimization - 2024-09-X
+
+### Systematic Approach to Preventing Deployment Issues
+- Applied **Pre-Deployment Validation** strategy:
+  - Updated runtime configuration in vercel.json to use correct format: `@vercel/node@2.15.3`
+  - Fixed maxDuration settings to comply with Vercel free tier limits (60 seconds)
+  - Added appropriate memory allocation (1024MB) for optimal performance
+
+- Implemented **TypeScript Enforcement**:
+  - Added strictNullChecks to tsconfig.json for more rigorous type checking
+  - Enforced noImplicitAny to prevent type-related deployment issues
+  - Added forceConsistentCasingInFileNames for better cross-platform compatibility
+
+- Applied **Vercel-Specific Configuration**:
+  - Updated webpack config with fallbacks for AWS SDK and Node.js API compatibility
+  - Added "aws-crt": false to prevent Edge Runtime compatibility issues
+  - Updated next.config.js with optimized settings for build process
+  - Added bodyParser size limit increase for improved file upload functionality
+
+- Added **Version Locking Strategy**:
+  - Created .npmrc with engine-strict and save-exact for consistent installs
+  - Added overrides in package.json to pin critical dependencies to exact versions:
+    - @aws-sdk/s3-request-presigner: 3.418.0
+    - drizzle-orm: 0.29.3
+    - @clerk/nextjs: 4.29.9
+  - Added Node.js engine requirement (>=18.17.0)
+
+- Integrated **Build Chain Improvements**:
+  - Added vercel-build script that runs type-check before building
+  - Preserved existing functionality while enhancing type safety
+  - Fixed runtime configuration in API routes to ensure correct Node.js environment
 
 ## Build Fixes - 2024-09-X
 
 ### Fixed Vercel Build Process
 - Created/updated `vercel.json` to properly configure serverless functions
-  - Set runtime to `nodejs18.x` for API routes
+  - Set runtime to `@vercel/node@2.15.3` for API routes
   - Limited maxDuration to 60 seconds (Vercel free tier limit)
   - Set memory to 1024MB for optimal performance
 - Added explicit runtime configuration in `middleware.ts`
