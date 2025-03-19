@@ -41,7 +41,6 @@ export const filesTable = pgTable("files", {
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .notNull()
-    .$onUpdate(() => new Date())
 }, (table) => {
   return {
     // Add indexes for search optimization

@@ -28,7 +28,6 @@ export const projectsTable = pgTable("projects", {
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .notNull()
-    .$onUpdate(() => new Date())
 });
 
 // Helper types for type safety

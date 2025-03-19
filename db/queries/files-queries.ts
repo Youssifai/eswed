@@ -28,7 +28,8 @@ export const createFolder = async (
       name,
       type: "folder",
       parentId: parentId || null,
-      isSystemFolder
+      isSystemFolder,
+      updatedAt: new Date()
     };
 
     const [newFolder] = await db.insert(filesTable).values(folderData).returning();
