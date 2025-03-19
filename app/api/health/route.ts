@@ -4,6 +4,10 @@ import { db } from "@/db/db";
 import { filesTable } from "@/db/schema/files-schema";
 import { sql } from "drizzle-orm";
 
+
+// Use Node.js runtime for this API route
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     // Check database connection

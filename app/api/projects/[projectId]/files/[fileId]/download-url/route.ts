@@ -4,6 +4,10 @@ import { getFileById } from "@/db/queries/files-queries";
 import { getProjectById } from "@/db/queries/projects-queries";
 import { getDownloadUrl } from "@/lib/wasabi-client";
 
+
+// Use Node.js runtime for this API route
+export const runtime = "nodejs";
+
 // Tell Next.js to use dynamic rendering for this route
 export const dynamic = 'force-dynamic';
 

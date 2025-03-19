@@ -3,6 +3,10 @@ import { auth } from "@clerk/nextjs/server";
 import { getFilesByProjectId, getFileById } from "@/db/queries/files-queries";
 import { getProjectById } from "@/db/queries/projects-queries";
 
+
+// Use Node.js runtime for this API route
+export const runtime = "nodejs";
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { projectId: string } }

@@ -3,6 +3,10 @@ import { stripe } from "@/lib/stripe";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
+
+// Use Node.js runtime for this API route
+export const runtime = "nodejs";
+
 const relevantEvents = new Set(["checkout.session.completed", "customer.subscription.updated", "customer.subscription.deleted"]);
 
 export async function POST(req: Request) {

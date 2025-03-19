@@ -930,6 +930,22 @@ Fixed the file download functionality from Wasabi storage:
 
 ## Deployment Fixes for Vercel
 
+### Latest Fixes (September 2023)
+- Fixed Clerk component prop issues:
+  - Changed `forceRedirectUrl` to `redirectUrl` in login and signup pages
+  - Updated redirects to point to the notes page
+- Added explicit Node.js runtime declarations:
+  - Created script to add runtime declarations to all API routes
+  - Updated middleware.ts with explicit runtime export
+  - Ensured vercel.json uses correct runtime format (`@vercel/node@2.15.3`)
+- Fixed Edge Runtime compatibility issues:
+  - Added browser polyfills for Node.js APIs in next.config.js
+  - Added browser-compatible dependencies for crypto, buffer, and stream
+  - Enhanced webpack configuration with proper fallbacks
+- Enhanced authentication routing:
+  - Added more public routes for login/signup pages
+  - Fixed redirect URLs for better user experience
+
 ### ESLint Fixes
 - Fixed unescaped entities in various files (changed ' to &apos; and " to &quot;)
 - Turned off `no-unescaped-entities` rule in `.eslintrc.json`
@@ -940,7 +956,7 @@ Fixed the file download functionality from Wasabi storage:
 ### Runtime Configuration
 - Updated `middleware.ts` to use Node.js runtime
 - Created a `vercel.json` file with specific settings for API functions:
-  - Set `nodejs18.x` runtime for API routes
+  - Set `@vercel/node@2.15.3` runtime for API routes
   - Set memory allocation to 1024MB
   - Updated maxDuration from 300 to 60 seconds to comply with free tier limits
 - Added explicit runtime declarations in API routes
