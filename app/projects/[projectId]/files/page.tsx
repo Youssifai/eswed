@@ -13,6 +13,8 @@ import { searchFiles } from "@/actions/search-actions";
 import { SelectFile } from "@/db/schema/files-schema";
 import { SearchFilterBarWrapper } from "@/components/search-filter-bar-wrapper";
 import FilePageActions from "@/components/file-page-actions";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 
 interface FilesPageProps {
   params: {

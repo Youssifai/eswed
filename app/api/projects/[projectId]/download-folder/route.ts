@@ -17,8 +17,15 @@ export const dynamic = "force-dynamic";
 // Use Node.js runtime for file operations
 export const runtime = "nodejs";
 
-// Force a longer timeout
-export const maxDuration = 300; // Increase to 5 minutes for larger projects
+// Set maxDuration to 60 seconds to comply with Vercel free tier
+export const maxDuration = 60;
+
+// Maximum number of files per zip
+const MAX_FILES_PER_ZIP = 25;
+
+// Maximum total size of files to process in a single request (10MB)
+const MAX_TOTAL_SIZE_MB = 10;
+const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 // Function to read a readable stream into a buffer
 async function streamToBuffer(stream: Readable): Promise<Buffer> {
@@ -36,6 +43,13 @@ export async function GET(
 ) {
   try {
     console.log(`[Download Project] Starting download for project ID: ${params.projectId}`);
+    
+    // Get pagination parameters
+    const searchParams = request.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const fileIds = searchParams.get('fileIds'); // Optional comma-separated list of specific file IDs
+    
+    console.log(`[Download Project] Page: ${page}, FileIds: ${fileIds || 'none'}`);
     
     // Authenticate user
     const { userId } = auth();
@@ -59,7 +73,7 @@ export async function GET(
     console.log(`[Download Project] Project found: ${project.name}`);
 
     // Create temporary file path for the zip
-    const zipFileName = `${project.name.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.zip`;
+    const zipFileName = `${project.name.replace(/[^a-z0-9]/gi, '_')}-${page}.zip`;
     const tmpFilePath = path.join(tmpdir(), `${randomUUID()}-${zipFileName}`);
     console.log(`[Download Project] Temporary file path: ${tmpFilePath}`);
 
@@ -72,13 +86,33 @@ export async function GET(
       return NextResponse.json({ error: "No files found in project" }, { status: 404 });
     }
 
-    // Filter out folders, we only need files with valid Wasabi paths
-    const files = allFiles.filter(file => file.type === "file" && file.wasabiObjectPath);
-    console.log(`[Download Project] Filtered to ${files.length} actual files with Wasabi paths`);
+    // Filter and prepare files
+    let filesToProcess = allFiles.filter(file => file.type === "file" && file.wasabiObjectPath);
     
-    if (files.length === 0) {
-      console.log("[Download Project] No valid files with storage paths found");
-      return NextResponse.json({ error: "No valid files found with storage paths" }, { status: 404 });
+    // If specific file IDs were provided, only include those
+    if (fileIds) {
+      const idList = fileIds.split(',');
+      filesToProcess = filesToProcess.filter(file => idList.includes(file.id));
+      console.log(`[Download Project] Filtered to ${filesToProcess.length} requested files`);
+    }
+
+    // Apply pagination to files
+    const totalFiles = filesToProcess.length;
+    const totalPages = Math.ceil(totalFiles / MAX_FILES_PER_ZIP);
+    
+    // Enforce pagination limits
+    const start = (page - 1) * MAX_FILES_PER_ZIP;
+    const end = Math.min(start + MAX_FILES_PER_ZIP, totalFiles);
+    filesToProcess = filesToProcess.slice(start, end);
+    
+    console.log(`[Download Project] Processing files ${start + 1} to ${end} of ${totalFiles} (Page ${page}/${totalPages})`);
+    
+    if (filesToProcess.length === 0) {
+      console.log("[Download Project] No valid files with storage paths found for this page");
+      return NextResponse.json({ 
+        error: "No valid files found for this page",
+        pagination: { page, totalPages, totalFiles }
+      }, { status: 404 });
     }
 
     // Initialize S3 client
@@ -96,16 +130,17 @@ export async function GET(
     // Create a write stream to the temporary file
     const output = fs.createWriteStream(tmpFilePath);
     
-    // Create a new archive with better debugging
+    // Create a new archive with moderate compression
     const archive = archiver('zip', {
-      zlib: { level: 5 } // Compression level
+      zlib: { level: 3 } // Lower compression level for faster processing
     });
     
     console.log("[Download Project] Archive created");
     
-    // Track count of successfully added files
+    // Track count of successfully added files and total processed size
     let successCount = 0;
     let errorCount = 0;
+    let totalSizeProcessed = 0;
     
     // Listen for all archiver events to debug any issues
     archive.on('entry', (entry) => {
@@ -113,18 +148,9 @@ export async function GET(
       successCount++;
     });
     
-    archive.on('progress', (progress) => {
-      console.log(`[Download Project] Archive progress: ${progress.entries.processed}/${progress.entries.total} entries`);
-    });
-    
     // Listen for archive warnings
     archive.on('warning', (err) => {
-      if (err.code === 'ENOENT') {
-        console.warn('[Download Project] Archiver warning:', err);
-      } else {
-        console.error('[Download Project] Archiver error:', err);
-        throw err;
-      }
+      console.warn('[Download Project] Archiver warning:', err);
     });
     
     // Listen for archive errors
@@ -136,8 +162,14 @@ export async function GET(
     // Pipe the archive data to the file
     archive.pipe(output);
 
-    // Process each file sequentially to avoid memory issues
-    for (const file of files) {
+    // Process files with size limits
+    for (const file of filesToProcess) {
+      // Check if we've already hit our processing limit
+      if (totalSizeProcessed >= MAX_TOTAL_SIZE_BYTES) {
+        console.log(`[Download Project] Hit size limit of ${MAX_TOTAL_SIZE_MB}MB, stopping processing`);
+        break;
+      }
+      
       if (!file.wasabiObjectPath) {
         console.log(`[Download Project] Skipping file with no storage path: ${file.name}`);
         continue;
@@ -145,6 +177,15 @@ export async function GET(
 
       try {
         console.log(`[Download Project] Processing file: ${file.name} (${file.wasabiObjectPath})`);
+        
+        // Get file size if available (from our database), or estimate based on file type
+        const fileSize = file.size ? parseInt(file.size, 10) : 0;
+        
+        // Skip very large files if we're close to the limit
+        if (fileSize > 0 && (totalSizeProcessed + fileSize) > MAX_TOTAL_SIZE_BYTES) {
+          console.log(`[Download Project] Skipping large file ${file.name} (${fileSize} bytes) to stay within size limit`);
+          continue;
+        }
         
         // Use the enhanced download function to get the file
         const fileBuffer = await downloadObject(file.wasabiObjectPath);
@@ -156,6 +197,7 @@ export async function GET(
         }
         
         console.log(`[Download Project] Downloaded ${fileBuffer.length} bytes for: ${file.name}`);
+        totalSizeProcessed += fileBuffer.length;
         
         if (fileBuffer.length === 0) {
           console.warn(`[Download Project] Warning: Empty file content for ${file.name}`);
@@ -169,7 +211,12 @@ export async function GET(
           let currentParentId: string | null = file.parentId;
           const folderParts = [];
           
-          while (currentParentId) {
+          // Prevent deep recursion by limiting folder depth
+          let depth = 0;
+          const MAX_DEPTH = 5;
+          
+          while (currentParentId && depth < MAX_DEPTH) {
+            depth++;
             const parentFolder = allFiles.find(f => f.id === currentParentId);
             if (!parentFolder) {
               console.log(`[Download Project] Parent folder not found for ID: ${currentParentId}`);
@@ -177,7 +224,6 @@ export async function GET(
             }
             
             folderParts.unshift(parentFolder.name);
-            console.log(`[Download Project] Added parent folder to path: ${parentFolder.name}`);
             currentParentId = parentFolder.parentId || null;
           }
           
@@ -198,17 +244,20 @@ export async function GET(
       }
     }
 
-    console.log(`[Download Project] Processed ${files.length} files: ${successCount} successful, ${errorCount} errors`);
+    console.log(`[Download Project] Processed files: ${successCount} successful, ${errorCount} errors`);
     
     if (successCount === 0) {
       console.error('[Download Project] No files were successfully added to the archive');
       return NextResponse.json(
-        { error: "Failed to add any files to the archive" },
+        { 
+          error: "Failed to add any files to the archive",
+          pagination: { page, totalPages, totalFiles }
+        },
         { status: 500 }
       );
     }
 
-    // Finalize the archive and wait for it to complete
+    // Finalize the archive
     console.log('[Download Project] Finalizing archive...');
     await archive.finalize();
     
@@ -219,10 +268,6 @@ export async function GET(
       output.on('close', () => {
         console.log(`[Download Project] Archive created: ${tmpFilePath}`);
         console.log(`[Download Project] Archive size: ${archive.pointer()} bytes`);
-        // Additional check: if archive size is 0 or very small, this indicates a problem
-        if (archive.pointer() < 100) {
-          console.error('[Download Project] Warning: Archive size is suspiciously small');
-        }
         resolve();
       });
       output.on('error', (err) => {
@@ -238,40 +283,50 @@ export async function GET(
     if (stats.size === 0) {
       console.error('[Download Project] Error: ZIP file is empty');
       return NextResponse.json(
-        { error: "Generated ZIP file is empty" },
+        { 
+          error: "Generated ZIP file is empty",
+          pagination: { page, totalPages, totalFiles } 
+        },
         { status: 500 }
       );
     }
 
     // Read the zip file into memory
-    console.log('[Download Project] Reading ZIP file into memory...');
     const zipBuffer = fs.readFileSync(tmpFilePath);
     console.log(`[Download Project] ZIP file loaded into memory: ${zipBuffer.length} bytes`);
     
-    // Create a proper content disposition header
-    const contentDisposition = `attachment; filename="${encodeURIComponent(zipFileName)}"`;
-
     // Clean up the temporary file
     try {
       fs.unlinkSync(tmpFilePath);
       console.log(`[Download Project] Temporary file deleted: ${tmpFilePath}`);
-    } catch (err) {
-      console.error('[Download Project] Error deleting temporary file:', err);
+    } catch (error) {
+      console.warn(`[Download Project] Failed to delete temporary file: ${tmpFilePath}`, error);
+      // Non-critical error, continue
     }
 
-    console.log('[Download Project] Returning ZIP file to client...');
-    // Return the zip file
-    return new NextResponse(zipBuffer, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': contentDisposition,
-        'Content-Length': zipBuffer.length.toString(),
-      },
-    });
+    // Return the zip file as a response
+    const response = new NextResponse(zipBuffer);
+    
+    // Set appropriate headers
+    const suggestedFilename = totalPages > 1 
+      ? `${project.name.replace(/[^a-z0-9]/gi, '_')}_part${page}_of_${totalPages}.zip` 
+      : `${project.name.replace(/[^a-z0-9]/gi, '_')}.zip`;
+      
+    response.headers.set('Content-Type', 'application/zip');
+    response.headers.set('Content-Disposition', `attachment; filename="${suggestedFilename}"`);
+    response.headers.set('Content-Length', zipBuffer.length.toString());
+    
+    // Add pagination info in headers
+    response.headers.set('X-Pagination-Page', page.toString());
+    response.headers.set('X-Pagination-Total-Pages', totalPages.toString());
+    response.headers.set('X-Pagination-Total-Files', totalFiles.toString());
+    
+    console.log(`[Download Project] Returning ZIP file (${zipBuffer.length} bytes)`);
+    return response;
   } catch (error) {
-    console.error("[Download Project] Error processing download request:", error);
+    console.error("[Download Project] Error:", error);
     return NextResponse.json(
-      { error: "Failed to process download request", details: error instanceof Error ? error.message : String(error) },
+      { error: "Failed to create ZIP file: " + (error instanceof Error ? error.message : "Unknown error") },
       { status: 500 }
     );
   }
