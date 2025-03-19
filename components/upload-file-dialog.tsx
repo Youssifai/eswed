@@ -21,7 +21,7 @@ import { uploadFileChunk } from "@/actions/chunked-upload-actions";
 
 interface UploadFileDialogProps {
   projectId: string;
-  parentId?: string;
+  parentId?: string | null;
   onSuccess?: () => void;
   children?: React.ReactNode;
   open?: boolean;
@@ -277,7 +277,7 @@ export default function UploadFileDialog({
               });
               
               // Actual file upload using our server action
-              await uploadFile(projectId, fileInfo, parentId);
+              await uploadFile(projectId, fileInfo, parentId || null);
             } else {
               // For larger files, use the chunked upload approach
               await uploadLargeFileInChunks(
@@ -289,7 +289,7 @@ export default function UploadFileDialog({
                     fileName: status.file.name,
                     fileType: status.file.type,
                     fileSize: status.file.size,
-                    parentId,
+                    parentId: parentId || null,
                     description: status.description,
                     tags: status.tags,
                     chunkIndex,

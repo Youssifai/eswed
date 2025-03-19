@@ -130,7 +130,7 @@ export function FileUpload({
         body: JSON.stringify({
           fileName,
           fileType: file.type,
-          parentId: parentId,
+          parentId: parentId || null,
           description: description || null,
           tags: tags ? tags.split(",").map(tag => tag.trim()) : null,
         }),

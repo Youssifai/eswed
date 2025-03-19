@@ -937,6 +937,7 @@ Fixed the file download functionality from Wasabi storage:
   - Improved handling of auto-sort folder function return types
   - Fixed implementation in chunked upload actions
   - Applied consistent pattern for handling optional folder IDs
+  - Fixed type error in upload-file-dialog.tsx by converting undefined parentId to null
 
 ### Latest Build Fixes (September 2023)
 - Fixed Build Errors:
@@ -1022,4 +1023,13 @@ Fixed the file download functionality from Wasabi storage:
 - File upload speed: Improved by 35% with chunked uploads
 - Download processing: Now handles 3x more files before timeout
 - Database query performance: Improved by 25% with optimized indexes
+
+## TypeScript Error Fixes - 2024-09-X
+
+### Fixed Type Error with parentId in Upload Dialog
+- Updated the `UploadFileDialogProps` interface in `components/upload-file-dialog.tsx`
+- Changed `parentId?: string` to `parentId?: string | null` to match `ChunkMetadata` interface
+- Ensures proper type compatibility between the component props and the expected API parameters
+- This fix prevents build errors caused by type mismatch between `string | undefined` and `string | null`
+- Fixed TypeScript error that was blocking successful build on Vercel
 
