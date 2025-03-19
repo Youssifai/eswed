@@ -8,6 +8,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
+// Force use of Node.js runtime to avoid Edge Runtime issues with Clerk
+export const runtime = "nodejs";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {

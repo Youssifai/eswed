@@ -1,5 +1,5 @@
 import { authMiddleware } from "@clerk/nextjs";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Explicitly use Node.js runtime 
 export const runtime = "nodejs";
@@ -35,6 +35,27 @@ export default authMiddleware({
 
 // Match all routes except public assets, api routes, and static files
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    '/((?!.+\\.[\\w]+$|_next).*)', 
+    '/', 
+    '/(api|trpc)(.*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    {
+      source: '/((?!_next/static|_next/image|favicon.ico).*)',
+      missing: [
+        { type: 'header', key: 'next-router-prefetch' },
+        { type: 'header', key: 'purpose', value: 'prefetch' },
+      ],
+    }
+  ],
   runtime: "nodejs" // Explicitly use Node.js runtime instead of Edge
 };
+
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
+}

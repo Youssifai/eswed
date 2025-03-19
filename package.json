@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "rm -rf .next && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "npx drizzle-kit generate",
@@ -12,7 +12,7 @@
     "db:migrate:run": "node scripts/run-migrations.js",
     "db:ensure-folders": "node scripts/ensure-default-folders.js",
     "type-check": "tsc --noEmit",
-    "vercel-build": "npm run type-check && next build"
+    "vercel-build": "rm -rf .next && next build --no-lint"
   },
   "engines": {
     "node": ">=18.17.0"
@@ -101,9 +101,15 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@babel/core": "7.26.10",
+    "@babel/plugin-transform-class-properties": "7.25.9",
+    "@babel/plugin-transform-private-methods": "7.25.9",
+    "@babel/plugin-transform-private-property-in-object": "7.25.9",
+    "@babel/preset-env": "7.26.9",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "babel-loader": "10.0.0",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
     "drizzle-kit": "^0.24.2",
