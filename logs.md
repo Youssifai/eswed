@@ -928,6 +928,40 @@ Fixed the file download functionality from Wasabi storage:
 
 # Development Logs
 
+## Npm and Vercel Configuration Fixes - 2024-09-X
+
+### Enhanced Npm Configuration
+- Updated `.npmrc` with additional settings:
+  - Added `prefer-dedupe=true` to reduce duplicate packages
+  - Set `fund=false` and `audit=false` to reduce npm install noise
+  - Maintained `legacy-peer-deps=true` for compatibility
+  - These changes help avoid dependency conflicts during Vercel builds
+
+### Simplified Vercel.json Configuration
+- Removed version number from runtime specification:
+  - Changed from `@vercel/node@2.15.3` to `@vercel/node`
+  - This allows Vercel to use the most appropriate version
+- Simplified path pattern for API functions:
+  - Modified from `app/api/**/*.ts` to `app/api/**/*`
+  - This ensures all API files are properly captured
+- Removed unnecessary buildCommand and regions settings
+  - These are typically set in the Vercel dashboard
+
+## Npm Override Conflict Fix - 2024-09-X
+
+### Fixed Dependency Override Conflict
+- **Issue**: Build failing with error `Override for @clerk/nextjs@^4.29.9 conflicts with direct dependency`
+- **Root Cause**: When using overrides in package.json, the dependency and override version formats must match exactly
+- **Solution**: 
+  - Changed `@clerk/nextjs` dependency from `^4.29.9` (caret version) to `4.29.9` (exact version)
+  - Maintained the override entry to keep version consistency in the dependency tree
+  - This allows npm to properly resolve dependencies without conflicts
+
+### Verification
+- Confirmed that package.json correctly contains the exact version "4.29.9" for @clerk/nextjs
+- No caret symbol (^) in the dependency version to ensure it exactly matches the override
+- This should resolve the npm installation error during Vercel deployment
+
 ## Vercel Deployment Optimization - 2024-09-X
 
 ### Systematic Approach to Preventing Deployment Issues
