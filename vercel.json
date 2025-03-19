@@ -1,7 +1,7 @@
 {
   "functions": {
-    "app/api/**/*": {
-      "runtime": "@vercel/node",
+    "app/api/**/*.ts": {
+      "runtime": "@vercel/node@2.15.3",
       "memory": 1024,
       "maxDuration": 60
     }
