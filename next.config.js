@@ -32,12 +32,13 @@ const nextConfig = {
     // We'll handle TypeScript errors in our code
     ignoreBuildErrors: false
   },
-  // Increase the body parser limit for larger file uploads
-  api: {
+  // Server runtime configuration
+  serverRuntimeConfig: {
+    // Body parser limit for larger file uploads
     bodyParser: {
       sizeLimit: '10mb',
     },
-  },
+  }
 };
 
 module.exports = nextConfig; 

@@ -80,6 +80,7 @@ export async function uploadFileChunk(
         wasabiObjectPath,
         description: metadata.description,
         tags: metadata.tags,
+        updatedAt: new Date(),
       });
       
       // Save the file id in the chunks store

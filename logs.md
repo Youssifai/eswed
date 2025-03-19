@@ -928,6 +928,28 @@ Fixed the file download functionality from Wasabi storage:
 
 # Development Logs
 
+## Vercel Deployment Bug Fixes - 2024-09-X
+
+### Fixed TypeScript Error in createFile Calls
+- **Issue**: Build failing with error `Property 'updatedAt' is missing in type...` when calling `createFile`
+- **Root Cause**: The `InsertFile` type requires an `updatedAt` property, but it was missing in the objects passed to `createFile`
+- **Solution**:
+  - Added `updatedAt: new Date()` to all `createFile` calls across multiple files:
+    - `actions/chunked-upload-actions.ts`
+    - `actions/file-actions.ts` (two instances)
+    - `app/api/upload/route.ts`
+    - `app/api/projects/[projectId]/upload-url/route.ts`
+  - This matches the schema expectation where `updatedAt` is required
+  - Note: Even though the database has `updatedAt` with `defaultNow()`, Drizzle ORM type checking requires this field
+
+### Fixed Invalid Next.js Configuration
+- **Issue**: Warning about invalid `api` key in `next.config.js`
+- **Root Cause**: The `api` property is not recognized by Next.js at the top level
+- **Solution**:
+  - Removed the invalid `api` key
+  - Moved body parser configuration to `serverRuntimeConfig` section
+  - This provides the same functionality while using the proper Next.js configuration structure
+
 ## Drizzle-ORM Dependency Fix - 2024-09-X
 
 ### Fixed Drizzle-ORM Dependency Conflict

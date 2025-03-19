@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
       size: file.size.toString(),
       wasabiObjectPath: wasabiPath,
       description,
-      tags
+      tags,
+      updatedAt: new Date(),
     });
 
     return NextResponse.json({

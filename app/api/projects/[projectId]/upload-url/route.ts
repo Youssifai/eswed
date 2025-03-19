@@ -86,6 +86,7 @@ export async function POST(
         wasabiObjectPath: wasabiObjectPath,
         description: description || null,
         tags: tags || null,
+        updatedAt: new Date(),
       });
 
       return NextResponse.json({

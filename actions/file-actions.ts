@@ -195,6 +195,7 @@ export async function uploadFile(
           wasabiObjectPath,
           description: fileInfo.description || null,
           tags: fileInfo.tags || null,
+          updatedAt: new Date(),
         });
         
         revalidatePath(`/projects/${projectId}/files`);
@@ -222,6 +223,7 @@ export async function uploadFile(
           wasabiObjectPath, // We store the path even though no content yet
           description: fileInfo.description || null,
           tags: fileInfo.tags || null,
+          updatedAt: new Date(),
         });
         
         revalidatePath(`/projects/${projectId}/files`);
