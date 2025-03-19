@@ -1060,3 +1060,60 @@ Fixed the file download functionality from Wasabi storage:
 - Ensures proper type compatibility between the component props and the expected API parameters
 - This fix prevents build errors caused by type mismatch between `string | undefined` and `string | null`
 
+# Deployment Fixes Log
+
+## TypeScript Type Error Fix
+
+**Problem:**
+- TypeScript type error in `actions/project-actions.ts` where `dbCreateProject` expects an `updatedAt` field, but it was missing in the object being passed.
+
+**Solution:**
+- Added the `updatedAt` field with a new Date() value to the object passed to `dbCreateProject` in the `createProject` function.
+
+```typescript
+const project = await dbCreateProject({
+  ownerId: userId,
+  name: data.name,
+  description: data.description,
+  briefContent: null,
+  inspirationData: null,
+  wasabiFolderPath: null,
+  updatedAt: new Date(),
+});
+```
+
+## Webpack Dependency Handling Fix
+
+**Problem:**
+- Webpack was struggling with dynamic require calls, particularly with `.mjs` files from libraries like `@aws-sdk/signature-v4-multi-region`.
+
+**Solution:**
+- Updated `next.config.js` to handle `.mjs` files properly by adding the following configuration:
+
+```javascript
+// Add support for .mjs files
+config.module.rules.push({
+  test: /\.mjs$/,
+  include: /node_modules/,
+  type: "javascript/auto",
+});
+```
+
+## Edge Runtime Compatibility Verification
+
+**Problem:**
+- Potential issues with Node.js APIs (setImmediate, MessageChannel, MessageEvent) from scheduler and @clerk/clerk-react that are not supported in Edge Runtime.
+
+**Solution:**
+- Verified that all API routes in the project already had the appropriate `export const runtime = "nodejs"` declaration to ensure they're using the Node.js runtime instead of Edge runtime.
+- Fixed the download-folder route.ts file to use proper runtime declaration.
+
+## Summary
+
+All the issues have been addressed:
+1. Fixed TypeScript type error by adding the missing `updatedAt` field
+2. Enhanced the Webpack configuration to properly handle `.mjs` files
+3. Verified all API routes are properly configured to use Node.js runtime
+
+These changes should resolve the deployment issues on Vercel related to TypeScript type errors, Edge Runtime compatibility, and Webpack dependency handling.
+

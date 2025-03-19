@@ -34,6 +34,7 @@ export async function createProject(data: CreateProjectData) {
       briefContent: null,
       inspirationData: null,
       wasabiFolderPath: null,
+      updatedAt: new Date(),
     });
 
     if (!project) {

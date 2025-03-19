@@ -11,11 +11,9 @@ import { tmpdir } from "os";
 import { randomUUID } from "crypto";
 import { Readable, PassThrough } from "stream";
 
-// Tell Next.js to use dynamic rendering for this route
-export const dynamic = "force-dynamic";
-
-// Use Node.js runtime for file operations
+// Use Node.js runtime for this API route
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // Set maxDuration to 60 seconds to comply with Vercel free tier
 export const maxDuration = 60;

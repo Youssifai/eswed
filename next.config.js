@@ -22,6 +22,14 @@ const nextConfig = {
         events: require.resolve("events/"),
       };
     }
+    
+    // Add support for .mjs files
+    config.module.rules.push({
+      test: /\.mjs$/,
+      include: /node_modules/,
+      type: "javascript/auto",
+    });
+    
     return config;
   },
   eslint: {
