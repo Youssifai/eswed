@@ -2,10 +2,20 @@ import { S3Client, PutObjectCommand, GetObjectCommand, HeadBucketCommand, GetObj
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 
+// Ensure we're running in Node.js environment
+if (typeof process === 'undefined' || !process.version) {
+  console.error("Wasabi client must be used in a Node.js environment only.");
+}
+
 /**
  * Initialize S3 client for Wasabi with environment credentials
  */
 export function getWasabiClient() {
+  // Verify we're in a Node.js environment
+  if (typeof process === 'undefined' || !process.version) {
+    throw new Error("Wasabi client can only be used in Node.js environment");
+  }
+
   // Verify all required environment variables are set
   if (!process.env.WASABI_BUCKET_NAME || 
       !process.env.WASABI_REGION || 

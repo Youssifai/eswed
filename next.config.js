@@ -3,6 +3,25 @@ const nextConfig = {
   images: {
     domains: ['avatars.githubusercontent.com', 'img.clerk.com'],
   },
+  // Increase maximum server response size
+  async headers() {
+    return [
+      {
+        source: '/api/upload',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/json',
+          },
+          // These don't directly affect the body size limit, but they help with large responses
+          {
+            key: 'Transfer-Encoding',
+            value: 'chunked',
+          },
+        ],
+      },
+    ];
+  },
   // Simple fallbacks for Node.js APIs
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -48,15 +67,19 @@ const nextConfig = {
     },
   },
   experimental: {
-    esmExternals: true,
-    swcMinify: true
+    esmExternals: 'loose',
+    swcMinify: true,
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
   },
   // Output options
   output: 'standalone',
   poweredByHeader: false,
   // Disable static generation globally for the app router
   staticPageGenerationTimeout: 120,
-  generateEtags: false
+  generateEtags: false,
+  reactStrictMode: true,
 };
 
 module.exports = nextConfig; 

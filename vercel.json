@@ -11,8 +11,13 @@
       "src": "/api/projects/(?<projectId>[^/]+)/download-folder",
       "dest": "/api/projects/$projectId/download-folder",
       "continue": true
+    },
+    {
+      "src": "/api/wasabi/(.*)",
+      "dest": "/api/wasabi/$1"
     }
   ],
   "buildCommand": "npm run build",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "crons": []
 } 
