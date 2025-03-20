@@ -1,16 +1,17 @@
-"use client";
-
 import React from "react";
+import { Suspense } from "react";
 
-// Explicitly use client-side rendering to avoid server component manifest issues
+// Remove "use client" since layouts should be server components by default
 export default function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background">
-      {children}
-    </div>
+    <Suspense fallback={<div>Loading...</div>}>
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
+    </Suspense>
   );
 } 

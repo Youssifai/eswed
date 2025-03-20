@@ -72,14 +72,16 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '100mb',
     },
+    optimizeCss: true,
+    optimizePackageImports: ['@clerk/nextjs', '@radix-ui/react-icons'],
   },
   // Output options - use standalone for proper API support
   output: 'standalone',
   poweredByHeader: false,
-  // Disable static generation globally for the app router
-  staticPageGenerationTimeout: 120,
-  generateEtags: false,
   reactStrictMode: true,
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 };
 
 module.exports = nextConfig; 
