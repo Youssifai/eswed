@@ -73,7 +73,7 @@ const nextConfig = {
       bodySizeLimit: '100mb',
     },
   },
-  // Output options
+  // Output options - use standalone for proper API support
   output: 'standalone',
   poweredByHeader: false,
   // Disable static generation globally for the app router

@@ -1,4 +1,6 @@
-export const runtime = "nodejs";
+"use client";
+
+import React from "react";
 
 export default function HomePage() {
   return (
